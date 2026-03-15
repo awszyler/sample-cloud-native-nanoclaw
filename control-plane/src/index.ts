@@ -15,7 +15,7 @@ import { startHealthCheckLoop, stopHealthCheckLoop } from './services/health-che
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 async function main() {
-  const app = Fastify({ logger });
+  const app = Fastify({ loggerInstance: logger });
 
   await app.register(cors, { origin: config.corsOrigin });
   await app.register(healthRoutes);
