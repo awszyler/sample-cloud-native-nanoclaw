@@ -1,9 +1,16 @@
 // ClawBot Cloud — Tasks API Routes
-// CRUD operations for scheduled task management
+// CRUD operations for scheduled task management with EventBridge Scheduler integration
 
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { ulid } from 'ulid';
+import {
+  SchedulerClient,
+  CreateScheduleCommand,
+  DeleteScheduleCommand,
+  UpdateScheduleCommand,
+  GetScheduleCommand,
+} from '@aws-sdk/client-scheduler';
 import {
   getBot,
   createTask,
@@ -12,11 +19,15 @@ import {
   updateTask,
   deleteTask,
 } from '../../services/dynamo.js';
+import { config } from '../../config.js';
 import type {
   ScheduledTask,
   CreateTaskRequest,
   UpdateTaskRequest,
+  SqsTaskPayload,
 } from '@clawbot/shared';
+
+const scheduler = new SchedulerClient({ region: config.region });
 
 const createTaskSchema = z.object({
   groupJid: z.string().min(1),
@@ -31,6 +42,29 @@ const updateTaskSchema = z.object({
   prompt: z.string().min(1).max(5000).optional(),
   scheduleValue: z.string().min(1).optional(),
 });
+
+/**
+ * Convert a task's schedule type and value into an EventBridge Scheduler expression.
+ */
+function toScheduleExpression(
+  scheduleType: 'cron' | 'interval' | 'once',
+  scheduleValue: string,
+): string {
+  switch (scheduleType) {
+    case 'cron':
+      return `cron(${scheduleValue} *)`;
+    case 'interval': {
+      const minutes = Math.round(parseInt(scheduleValue, 10) / 60000);
+      return `rate(${minutes} minutes)`;
+    }
+    case 'once':
+      return `at(${scheduleValue})`;
+  }
+}
+
+function schedulerConfigured(): boolean {
+  return !!(config.scheduler.roleArn && config.scheduler.messageQueueArn);
+}
 
 export const tasksRoutes: FastifyPluginAsync = async (app) => {
   // List tasks for a bot
@@ -57,10 +91,11 @@ export const tasksRoutes: FastifyPluginAsync = async (app) => {
 
     const body = createTaskSchema.parse(request.body as CreateTaskRequest);
     const now = new Date().toISOString();
+    const taskId = ulid();
 
     const task: ScheduledTask = {
       botId,
-      taskId: ulid(),
+      taskId,
       groupJid: body.groupJid,
       prompt: body.prompt,
       scheduleType: body.scheduleType,
@@ -70,9 +105,45 @@ export const tasksRoutes: FastifyPluginAsync = async (app) => {
       createdAt: now,
     };
 
-    // TODO: Create EventBridge Schedule for the task
-    // For now, tasks are created but won't execute until
-    // the EventBridge integration is complete.
+    // Create EventBridge Schedule if scheduler is configured
+    if (schedulerConfigured()) {
+      const scheduleName = `clawbot-${botId}-${taskId}`;
+      const expression = toScheduleExpression(
+        body.scheduleType,
+        body.scheduleValue,
+      );
+
+      const sqsPayload: SqsTaskPayload = {
+        type: 'scheduled_task',
+        botId,
+        groupJid: body.groupJid,
+        userId: request.userId,
+        taskId,
+        timestamp: now,
+      };
+
+      const result = await scheduler.send(
+        new CreateScheduleCommand({
+          Name: scheduleName,
+          ScheduleExpression: expression,
+          ScheduleExpressionTimezone: 'UTC',
+          State: 'ENABLED',
+          FlexibleTimeWindow: { Mode: 'OFF' },
+          ActionAfterCompletion:
+            body.scheduleType === 'once' ? 'DELETE' : 'NONE',
+          Target: {
+            Arn: config.scheduler.messageQueueArn,
+            RoleArn: config.scheduler.roleArn,
+            Input: JSON.stringify(sqsPayload),
+            SqsParameters: {
+              MessageGroupId: `${botId}#${body.groupJid}`,
+            },
+          },
+        }),
+      );
+
+      task.eventbridgeScheduleArn = result.ScheduleArn;
+    }
 
     await createTask(task);
     return reply.status(201).send(task);
@@ -98,7 +169,7 @@ export const tasksRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  // Update a task
+  // Update a task (pause/resume via status change)
   app.patch<{ Params: { botId: string; taskId: string } }>(
     '/:taskId',
     async (request, reply) => {
@@ -117,6 +188,31 @@ export const tasksRoutes: FastifyPluginAsync = async (app) => {
       const updates = updateTaskSchema.parse(
         request.body as UpdateTaskRequest,
       );
+
+      // Update EventBridge Schedule state when status changes
+      if (updates.status && schedulerConfigured()) {
+        const scheduleName = `clawbot-${botId}-${taskId}`;
+
+        // Get current schedule to preserve all fields (UpdateSchedule overwrites everything)
+        const current = await scheduler.send(
+          new GetScheduleCommand({ Name: scheduleName }),
+        );
+
+        await scheduler.send(
+          new UpdateScheduleCommand({
+            Name: scheduleName,
+            ScheduleExpression: current.ScheduleExpression!,
+            ScheduleExpressionTimezone:
+              current.ScheduleExpressionTimezone || 'UTC',
+            FlexibleTimeWindow: current.FlexibleTimeWindow || {
+              Mode: 'OFF',
+            },
+            Target: current.Target!,
+            State: updates.status === 'paused' ? 'DISABLED' : 'ENABLED',
+            ActionAfterCompletion: current.ActionAfterCompletion,
+          }),
+        );
+      }
 
       await updateTask(botId, taskId, updates);
       const updated = await getTask(botId, taskId);
@@ -140,7 +236,24 @@ export const tasksRoutes: FastifyPluginAsync = async (app) => {
         return reply.status(404).send({ error: 'Task not found' });
       }
 
-      // TODO: Delete EventBridge Schedule if it exists
+      // Delete EventBridge Schedule if scheduler is configured
+      if (schedulerConfigured()) {
+        const scheduleName = `clawbot-${botId}-${taskId}`;
+        try {
+          await scheduler.send(
+            new DeleteScheduleCommand({ Name: scheduleName }),
+          );
+        } catch (err: unknown) {
+          // Ignore if schedule doesn't exist (already deleted or never created)
+          if (
+            !(
+              err instanceof Error && err.name === 'ResourceNotFoundException'
+            )
+          ) {
+            throw err;
+          }
+        }
+      }
 
       await deleteTask(botId, taskId);
       return reply.status(204).send();

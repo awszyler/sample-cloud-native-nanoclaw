@@ -41,6 +41,12 @@ export const config = {
     runtimeArn: process.env.AGENTCORE_RUNTIME_ARN || '',
   },
 
+  // EventBridge Scheduler
+  scheduler: {
+    roleArn: process.env.SCHEDULER_ROLE_ARN || '',
+    messageQueueArn: process.env.MESSAGE_QUEUE_ARN || '',
+  },
+
   // Concurrency
   maxConcurrentDispatches: Number(process.env.MAX_CONCURRENT_DISPATCHES) || 20,
 
