@@ -92,7 +92,7 @@ export default function BotDetail() {
                     ch.status === 'connected' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                   }`}>{ch.status}</span>
                 </div>
-                <button onClick={() => channelsApi.delete(botId!, `${ch.channelType}#${ch.channelId}`).then(loadData)}
+                <button onClick={() => channelsApi.delete(botId!, ch.channelType).then(loadData)}
                   className="text-sm text-red-500 hover:text-red-700">Remove</button>
               </div>
             ))}

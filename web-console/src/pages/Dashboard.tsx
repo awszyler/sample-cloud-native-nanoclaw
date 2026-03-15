@@ -54,7 +54,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-6 text-sm text-gray-700">
             <span>
               Token Usage: <span className="font-semibold">{usage.tokens.toLocaleString()}</span>
-              {quota?.maxTokens != null && <span className="text-gray-400"> / {Number(quota.maxTokens).toLocaleString()}</span>}
+              {quota?.maxMonthlyTokens != null && <span className="text-gray-400"> / {Number(quota.maxMonthlyTokens).toLocaleString()}</span>}
             </span>
             <span className="text-gray-300">|</span>
             <span>

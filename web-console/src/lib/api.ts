@@ -16,6 +16,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const error = await response.json().catch(() => ({ error: response.statusText }));
     throw new Error(error.error || response.statusText);
   }
+  // Handle 204 No Content (e.g. DELETE responses)
+  if (response.status === 204) {
+    return undefined as T;
+  }
   return response.json();
 }
 
@@ -105,7 +109,7 @@ export const bots = {
 export const channels = {
   list: (botId: string) => request<ChannelConfig[]>(`/bots/${botId}/channels`),
   create: (botId: string, data: CreateChannelRequest) => request<ChannelConfig>(`/bots/${botId}/channels`, { method: 'POST', body: JSON.stringify(data) }),
-  delete: (botId: string, channelKey: string) => request<void>(`/bots/${botId}/channels/${channelKey}`, { method: 'DELETE' }),
+  delete: (botId: string, channelType: string) => request<void>(`/bots/${botId}/channels/${channelType}`, { method: 'DELETE' }),
 };
 
 // Group API
