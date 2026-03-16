@@ -15,4 +15,6 @@ infra/cdk-outputs.json
 .env.development
 .env
 *.tsbuildinfo
-cdk.context.json
+cdk.context.jsonweb-console/.env.production
+infra/cdk.context.json
+openclaw/

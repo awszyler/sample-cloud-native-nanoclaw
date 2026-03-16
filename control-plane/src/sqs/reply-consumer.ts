@@ -8,10 +8,9 @@ import {
   DeleteMessageCommand,
 } from '@aws-sdk/client-sqs';
 import { config } from '../config.js';
-import { getChannelsByBot } from '../services/dynamo.js';
-import { getChannelCredentials } from '../services/cached-lookups.js';
-import { sendChannelMessage } from '../channels/index.js';
-import type { SqsReplyPayload } from '@clawbot/shared';
+import { getRegistry } from '../adapters/registry.js';
+import type { ReplyContext } from '@clawbot/shared/channel-adapter';
+import type { ChannelType, SqsReplyPayload } from '@clawbot/shared';
 import type { Logger } from 'pino';
 
 let running = false;
@@ -55,16 +54,14 @@ async function replyLoop(logger: Logger): Promise<void> {
         try {
           const payload: SqsReplyPayload = JSON.parse(msg.Body!);
 
-          // Load channel config for the bot
-          const channels = await getChannelsByBot(payload.botId);
-          const channel = channels.find(
-            (ch) => ch.channelType === payload.channelType,
-          );
+          // Route reply through adapter registry
+          const registry = getRegistry();
+          const adapter = registry.get(payload.channelType);
 
-          if (!channel) {
+          if (!adapter) {
             logger.warn(
               { botId: payload.botId, channelType: payload.channelType },
-              'No channel configured for reply',
+              'No adapter registered for channel type',
             );
             // Delete the message anyway to avoid infinite retries
             await sqs.send(
@@ -76,32 +73,13 @@ async function replyLoop(logger: Logger): Promise<void> {
             continue;
           }
 
-          // Load credentials
-          const creds = await getChannelCredentials(channel.credentialSecretArn);
+          const ctx: ReplyContext = {
+            botId: payload.botId,
+            groupJid: payload.groupJid,
+            channelType: payload.channelType as ChannelType,
+          };
 
-          // Extract chatId from groupJid
-          const chatId = payload.groupJid.split(':')[1];
-          if (!chatId) {
-            logger.error(
-              { groupJid: payload.groupJid },
-              'Could not extract chatId from groupJid',
-            );
-            await sqs.send(
-              new DeleteMessageCommand({
-                QueueUrl: config.queues.replies,
-                ReceiptHandle: msg.ReceiptHandle!,
-              }),
-            );
-            continue;
-          }
-
-          // Send reply via channel API
-          await sendChannelMessage(
-            payload.channelType,
-            creds,
-            chatId,
-            payload.text,
-          );
+          await adapter.sendReply(ctx, payload.text);
 
           // Delete message on success
           await sqs.send(

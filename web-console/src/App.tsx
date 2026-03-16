@@ -28,6 +28,7 @@ export default function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/bots/:botId" element={<BotDetail />} />
         <Route path="/bots/:botId/channels/new" element={<ChannelSetup />} />
+        <Route path="/bots/:botId/channels/setup" element={<ChannelSetup />} />
         <Route path="/bots/:botId/messages/:groupJid" element={<Messages />} />
         <Route path="/bots/:botId/tasks" element={<Tasks />} />
         <Route path="/memory" element={<MemoryEditor />} />

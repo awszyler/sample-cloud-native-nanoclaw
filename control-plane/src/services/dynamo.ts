@@ -82,6 +82,18 @@ export async function ensureUser(userId: string, email?: string): Promise<User> 
   return user;
 }
 
+export async function updateLastLogin(userId: string): Promise<void> {
+  userIdSchema.parse(userId);
+  await client.send(
+    new UpdateCommand({
+      TableName: config.tables.users,
+      Key: { userId },
+      UpdateExpression: 'SET lastLogin = :now',
+      ExpressionAttributeValues: { ':now': new Date().toISOString() },
+    }),
+  );
+}
+
 export async function updateUserUsage(
   userId: string,
   tokensUsed: number,

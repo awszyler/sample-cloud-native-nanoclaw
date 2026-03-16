@@ -4,11 +4,17 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = await getAuthToken();
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+  };
+  // Only set Content-Type for requests with a body
+  if (options.body) {
+    headers['Content-Type'] = 'application/json';
+  }
   const response = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      ...headers,
       ...options.headers,
     },
   });
@@ -122,7 +128,7 @@ export const groups = {
 export const tasks = {
   list: (botId: string) => request<ScheduledTask[]>(`/bots/${botId}/tasks`),
   create: (botId: string, data: CreateTaskRequest) => request<ScheduledTask>(`/bots/${botId}/tasks`, { method: 'POST', body: JSON.stringify(data) }),
-  update: (botId: string, taskId: string, data: UpdateTaskRequest) => request<ScheduledTask>(`/bots/${botId}/tasks/${taskId}`, { method: 'PUT', body: JSON.stringify(data) }),
+  update: (botId: string, taskId: string, data: UpdateTaskRequest) => request<ScheduledTask>(`/bots/${botId}/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify(data) }),
   delete: (botId: string, taskId: string) => request<void>(`/bots/${botId}/tasks/${taskId}`, { method: 'DELETE' }),
 };
 
@@ -147,7 +153,7 @@ export interface AdminUser {
   usageMonth: string;
   usageTokens: number;
   usageInvocations: number;
-  activeAgents: number;
+  botCount: number;
   createdAt: string;
   lastLogin: string;
 }

@@ -202,8 +202,18 @@ export class AgentStack extends cdk.Stack {
           'scheduler:GetSchedule',
         ],
         resources: [
-          `arn:aws:scheduler:${this.region}:${this.account}:schedule/default/nanoclawbot-\${aws:PrincipalTag/botId}-*`,
+          `arn:aws:scheduler:${this.region}:${this.account}:schedule/default/nanoclawbot-*`,
         ],
+      }),
+    );
+
+    // iam:PassRole for Scheduler — required to assign SchedulerRole to EventBridge schedules
+    this.agentScopedRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'PassSchedulerRole',
+        effect: iam.Effect.ALLOW,
+        actions: ['iam:PassRole'],
+        resources: [`arn:aws:iam::${this.account}:role/NanoClawBotSchedulerRole-${stage}`],
       }),
     );
 

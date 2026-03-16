@@ -2,11 +2,13 @@
 // Returns authenticated user profile and usage information
 
 import type { FastifyPluginAsync } from 'fastify';
-import { ensureUser } from '../../services/dynamo.js';
+import { ensureUser, updateLastLogin } from '../../services/dynamo.js';
 
 export const userRoutes: FastifyPluginAsync = async (app) => {
   app.get('/me', async (request) => {
     const user = await ensureUser(request.userId, request.userEmail);
+    // Fire-and-forget: update lastLogin timestamp
+    updateLastLogin(request.userId).catch(() => {});
     return {
       userId: user.userId,
       email: user.email,

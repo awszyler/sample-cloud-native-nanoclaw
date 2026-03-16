@@ -148,6 +148,12 @@ export interface Session {
 
 // --- SQS Message Payloads ---
 
+export interface SqsReplyContext {
+  discordInteractionToken?: string;
+  discordChannelId?: string;
+  slackResponseUrl?: string;
+}
+
 export interface SqsInboundPayload {
   type: 'inbound_message';
   botId: string;
@@ -157,6 +163,7 @@ export interface SqsInboundPayload {
   channelType: ChannelType;
   timestamp: string;
   attachments?: Attachment[];
+  replyContext?: SqsReplyContext;
 }
 
 export interface SqsTaskPayload {

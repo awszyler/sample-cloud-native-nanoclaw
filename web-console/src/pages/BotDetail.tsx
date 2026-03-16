@@ -89,11 +89,23 @@ export default function BotDetail() {
                 <div>
                   <span className="font-medium capitalize">{ch.channelType}</span>
                   <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                    ch.status === 'connected' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                  }`}>{ch.status}</span>
+                    ch.status === 'connected' ? 'bg-green-100 text-green-700' :
+                    ch.status === 'pending_webhook' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-red-100 text-red-700'
+                  }`}>{ch.status === 'pending_webhook' ? 'Setup Incomplete' : ch.status}</span>
                 </div>
-                <button onClick={() => channelsApi.delete(botId!, ch.channelType).then(loadData)}
-                  className="text-sm text-red-500 hover:text-red-700">Remove</button>
+                <div className="flex items-center gap-3">
+                  {ch.status === 'pending_webhook' && (
+                    <Link to={`/bots/${botId}/channels/setup?resume=${ch.channelType}`}
+                      className="text-sm text-indigo-600 hover:text-indigo-500 font-medium">Resume Setup</Link>
+                  )}
+                  <button onClick={() => {
+                    if (confirm(`Remove ${ch.channelType} channel?`)) {
+                      channelsApi.delete(botId!, ch.channelType).then(loadData);
+                    }
+                  }}
+                    className="text-sm text-red-500 hover:text-red-700">Remove</button>
+                </div>
               </div>
             ))}
           </div>

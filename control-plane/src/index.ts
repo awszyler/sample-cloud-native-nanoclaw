@@ -11,6 +11,10 @@ import { webhookRoutes } from './webhooks/index.js';
 import { startSqsConsumer, stopSqsConsumer } from './sqs/consumer.js';
 import { startReplyConsumer, stopReplyConsumer } from './sqs/reply-consumer.js';
 import { startHealthCheckLoop, stopHealthCheckLoop } from './services/health-checker.js';
+import { initRegistry } from './adapters/registry.js';
+import { DiscordAdapter } from './adapters/discord/index.js';
+import { SlackAdapter } from './adapters/slack/index.js';
+import { TelegramAdapter } from './adapters/telegram/index.js';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -31,12 +35,22 @@ async function main() {
   // Start periodic channel health checks
   startHealthCheckLoop(logger);
 
+  // Start channel adapters (Discord Gateway, etc.)
+  const registry = initRegistry(logger);
+  registry.register(new DiscordAdapter(logger));
+  registry.register(new SlackAdapter(logger));
+  registry.register(new TelegramAdapter(logger));
+  registry.startAll().catch((err) => {
+    logger.error(err, 'Failed to start channel adapters');
+  });
+
   // Graceful shutdown
   const shutdown = async () => {
     logger.info('Shutting down...');
     stopSqsConsumer();
     stopReplyConsumer();
     stopHealthCheckLoop();
+    await registry.stopAll();
     await app.close();
     process.exit(0);
   };

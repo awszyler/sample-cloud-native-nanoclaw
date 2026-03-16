@@ -196,6 +196,29 @@ export class ControlPlaneStack extends cdk.Stack {
       }),
     );
 
+    // EventBridge Scheduler — manage schedules for scheduled tasks API
+    taskRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        sid: 'SchedulerManage',
+        effect: iam.Effect.ALLOW,
+        actions: [
+          'scheduler:CreateSchedule',
+          'scheduler:GetSchedule',
+          'scheduler:UpdateSchedule',
+          'scheduler:DeleteSchedule',
+        ],
+        resources: [`arn:aws:scheduler:${this.region}:${this.account}:schedule/default/nanoclawbot-*`],
+      }),
+    );
+    taskRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        sid: 'PassSchedulerRole',
+        effect: iam.Effect.ALLOW,
+        actions: ['iam:PassRole'],
+        resources: [props.schedulerRoleArn],
+      }),
+    );
+
     // ECS RunTask (scoped to this cluster's tasks)
     taskRole.addToPrincipalPolicy(
       new iam.PolicyStatement({

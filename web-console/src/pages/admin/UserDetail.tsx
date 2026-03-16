@@ -105,8 +105,8 @@ export default function UserDetail() {
             <dd className="text-2xl font-bold text-gray-900">{user.usageInvocations.toLocaleString()}</dd>
           </div>
           <div>
-            <dt className="text-gray-500">Active Agents</dt>
-            <dd className="text-2xl font-bold text-gray-900">{user.activeAgents}</dd>
+            <dt className="text-gray-500">Bots</dt>
+            <dd className="text-2xl font-bold text-gray-900">{user.botCount ?? 0} / {user.quota?.maxBots ?? '—'}</dd>
           </div>
         </dl>
       </div>

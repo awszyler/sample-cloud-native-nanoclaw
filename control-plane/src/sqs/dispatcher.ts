@@ -25,13 +25,13 @@ import {
   putMessage,
   putSession,
   getTask,
-  getChannelsByBot,
   updateUserUsage,
   checkAndAcquireAgentSlot,
   releaseAgentSlot,
 } from '../services/dynamo.js';
-import { getCachedBot, getChannelCredentials } from '../services/cached-lookups.js';
-import { sendChannelMessage } from '../channels/index.js';
+import { getCachedBot } from '../services/cached-lookups.js';
+import { getRegistry } from '../adapters/registry.js';
+import type { ReplyContext, ReplyOptions } from '@clawbot/shared/channel-adapter';
 import type { Logger } from 'pino';
 
 // ── Main dispatch entry point ───────────────────────────────────────────────
@@ -80,6 +80,7 @@ async function dispatchMessage(
       payload.channelType,
       'Monthly usage quota exceeded. Please upgrade your plan or wait until next month.',
       logger,
+      payload.replyContext,
     );
     return;
   }
@@ -157,13 +158,21 @@ async function dispatchMessage(
           ttl: Math.floor(Date.now() / 1000) + 90 * 24 * 3600,
         });
 
-        // 9. Send reply via channel API
+        // 9. Send reply via channel adapter
+        const durationMs = Date.now() - startTime;
         await sendChannelReply(
           payload.botId,
           payload.groupJid,
           payload.channelType,
           replyText,
           logger,
+          payload.replyContext,
+          {
+            metadata: {
+              durationMs,
+              tokenCount: result.tokensUsed,
+            },
+          },
         );
       }
     } else if (result.status === 'error') {
@@ -333,7 +342,7 @@ export async function invokeAgent(
   }
 }
 
-// ── Channel reply routing ───────────────────────────────────────────────────
+// ── Channel reply routing (via Adapter Registry) ────────────────────────────
 
 async function sendChannelReply(
   botId: string,
@@ -341,40 +350,30 @@ async function sendChannelReply(
   channelType: string,
   text: string,
   logger: Logger,
+  replyContext?: SqsInboundPayload['replyContext'],
+  replyOpts?: ReplyOptions,
 ): Promise<void> {
   try {
-    // Load channel config for this bot + channel type
-    const channels = await getChannelsByBot(botId);
-    const channel = channels.find((ch) => ch.channelType === channelType);
-    if (!channel) {
-      logger.warn(
-        { botId, channelType },
-        'No channel configured for reply routing',
-      );
+    const registry = getRegistry();
+    const adapter = registry.get(channelType);
+
+    if (!adapter) {
+      logger.warn({ botId, channelType }, 'No adapter registered for channel type');
       return;
     }
 
-    // Load credentials
-    const creds = await getChannelCredentials(channel.credentialSecretArn);
+    const ctx: ReplyContext = {
+      botId,
+      groupJid,
+      channelType: channelType as ChannelType,
+      ...replyContext,
+    };
 
-    // Extract chat ID from groupJid (format: "tg:123456", "dc:789", "sl:C01234")
-    const chatId = groupJid.split(':')[1];
-    if (!chatId) {
-      logger.error({ groupJid }, 'Could not extract chatId from groupJid');
-      return;
-    }
-
-    // Send via channel client
-    await sendChannelMessage(
-      channelType as Message['channelType'],
-      creds,
-      chatId,
-      text,
-    );
+    await adapter.sendReply(ctx, text, replyOpts);
 
     logger.info(
       { botId, groupJid, channelType },
-      'Reply sent via channel',
+      'Reply sent via adapter',
     );
   } catch (err) {
     logger.error(

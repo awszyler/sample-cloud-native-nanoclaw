@@ -54,6 +54,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libdrm2 \
     libxshmfence1 \
     git curl ca-certificates \
+    python3 python3-pip python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
 # Set Chromium path for agent-browser / Puppeteer

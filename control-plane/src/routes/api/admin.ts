@@ -3,7 +3,7 @@
 
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { getUser, listAllUsers, updateUserQuota, updateUserPlan } from '../../services/dynamo.js';
+import { getUser, listAllUsers, listBots, updateUserQuota, updateUserPlan } from '../../services/dynamo.js';
 
 const quotaSchema = z.object({
   maxBots: z.number().int().min(0).optional(),
@@ -30,19 +30,26 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
   // List all users
   app.get('/', async () => {
     const users = await listAllUsers();
-    return users.map((u) => ({
-      userId: u.userId,
-      email: u.email,
-      displayName: u.displayName,
-      plan: u.plan,
-      quota: u.quota,
-      usageMonth: u.usageMonth,
-      usageTokens: u.usageTokens,
-      usageInvocations: u.usageInvocations,
-      activeAgents: u.activeAgents,
-      createdAt: u.createdAt,
-      lastLogin: u.lastLogin,
-    }));
+    const results = await Promise.all(
+      users.map(async (u) => {
+        const bots = await listBots(u.userId);
+        const activeBots = bots.filter((b) => b.status !== 'deleted').length;
+        return {
+          userId: u.userId,
+          email: u.email,
+          displayName: u.displayName,
+          plan: u.plan,
+          quota: u.quota,
+          usageMonth: u.usageMonth,
+          usageTokens: u.usageTokens,
+          usageInvocations: u.usageInvocations,
+          botCount: activeBots,
+          createdAt: u.createdAt,
+          lastLogin: u.lastLogin,
+        };
+      }),
+    );
+    return results;
   });
 
   // Get single user
@@ -51,6 +58,8 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     if (!user) {
       return reply.status(404).send({ error: 'User not found' });
     }
+    const bots = await listBots(user.userId);
+    const activeBots = bots.filter((b) => b.status !== 'deleted').length;
     return {
       userId: user.userId,
       email: user.email,
@@ -60,7 +69,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       usageMonth: user.usageMonth,
       usageTokens: user.usageTokens,
       usageInvocations: user.usageInvocations,
-      activeAgents: user.activeAgents,
+      botCount: activeBots,
       createdAt: user.createdAt,
       lastLogin: user.lastLogin,
     };

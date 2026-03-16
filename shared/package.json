@@ -7,6 +7,7 @@
   "exports": {
     ".": "./dist/index.js",
     "./types": "./dist/types.js",
+    "./channel-adapter": "./dist/channel-adapter.js",
     "./xml-formatter": "./dist/xml-formatter.js",
     "./text-utils": "./dist/text-utils.js"
   },
