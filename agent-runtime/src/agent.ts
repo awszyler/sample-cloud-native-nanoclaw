@@ -37,7 +37,7 @@ const DEFAULT_MODEL = 'global.anthropic.claude-sonnet-4-6';
 let currentSessionKey: string | undefined;
 
 async function cleanLocalWorkspace(): Promise<void> {
-  for (const dir of ['/workspace/group', '/workspace/global', '/workspace/shared', '/workspace/identity', '/workspace/reference', '/home/node/.claude']) {
+  for (const dir of ['/workspace/group', '/workspace/global', '/workspace/shared', '/workspace/identity', '/workspace/reference', '/workspace/learnings', '/home/node/.claude']) {
     try { rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }
     try { mkdirSync(dir, { recursive: true }); } catch { /* ignore */ }
   }
@@ -94,6 +94,7 @@ async function _handleInvocation(
     soulFile: memoryPaths.soul,
     bootstrapFile: memoryPaths.bootstrap,
     userFile: memoryPaths.user,
+    learningsPrefix: memoryPaths.learnings,
   };
 
   logger.info({ sessionPath, groupJid }, 'Syncing session from S3');
@@ -110,8 +111,9 @@ async function _handleInvocation(
   if (!fs.existsSync('/workspace/shared/USER.md')) {
     copyIfMissing(TEMPLATES, 'USER.md', '/workspace/shared');
   }
-  // Always ensure coding reference is available for on-demand loading
+  // Always ensure reference files are available for on-demand loading
   copyIfMissing(TEMPLATES, 'CODING_REFERENCE.md', '/workspace/reference');
+  copyIfMissing(TEMPLATES, 'SELF_IMPROVEMENT.md', '/workspace/reference');
 
   // 4. Detect existing session (needed for bootstrap injection decision)
   const existingSessionId = detectExistingSession();

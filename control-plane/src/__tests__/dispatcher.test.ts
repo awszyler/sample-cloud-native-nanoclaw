@@ -44,6 +44,7 @@ const basePayload: InvocationPayload = {
     soul: 'user-1/bot-1/SOUL.md',
     bootstrap: 'user-1/bot-1/BOOTSTRAP.md',
     user: 'user-1/shared/USER.md',
+    learnings: 'user-1/bot-1/learnings/',
   },
 };
 

@@ -38,6 +38,8 @@ export interface SyncPaths {
   bootstrapFile?: string;
   /** S3 key for USER.md — about the human user (read-write, Agent can update) */
   userFile?: string;
+  /** S3 prefix for learnings files (read-write) */
+  learningsPrefix?: string;
 }
 
 /**
@@ -81,6 +83,11 @@ export async function syncFromS3(
   if (paths.userFile) {
     await downloadFile(s3, bucket, paths.userFile, join(WORKSPACE_BASE, 'shared', 'USER.md'), logger);
   }
+
+  // 9. Download learnings files → /workspace/learnings/
+  if (paths.learningsPrefix) {
+    await downloadDirectory(s3, bucket, paths.learningsPrefix, join(WORKSPACE_BASE, 'learnings'), logger);
+  }
 }
 
 /**
@@ -121,6 +128,11 @@ export async function syncToS3(
       // File was deleted by Agent (e.g., BOOTSTRAP.md after bootstrap) → remove from S3
       await deleteS3Object(s3, bucket, s3Key, logger);
     }
+  }
+
+  // 5. Upload learnings files
+  if (paths.learningsPrefix) {
+    await uploadDirectory(s3, bucket, join(WORKSPACE_BASE, 'learnings'), paths.learningsPrefix, logger);
   }
 }
 

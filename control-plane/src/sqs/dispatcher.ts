@@ -141,6 +141,7 @@ async function dispatchMessage(
         soul: `${payload.userId}/${payload.botId}/SOUL.md`,
         bootstrap: `${payload.userId}/${payload.botId}/BOOTSTRAP.md`,
         user: `${payload.userId}/shared/USER.md`,
+        learnings: `${payload.userId}/${payload.botId}/learnings/`,
       },
       isGroupChat: group?.isGroup,
       ...(payload.attachments && payload.attachments.length > 0 && {
@@ -279,6 +280,7 @@ async function dispatchTask(
       soul: `${payload.userId}/${payload.botId}/SOUL.md`,
       bootstrap: `${payload.userId}/${payload.botId}/BOOTSTRAP.md`,
       user: `${payload.userId}/shared/USER.md`,
+      learnings: `${payload.userId}/${payload.botId}/learnings/`,
     },
     isGroupChat: group?.isGroup,
   };

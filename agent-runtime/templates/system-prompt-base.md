@@ -36,6 +36,8 @@ Your identity and memory are stored in these files (use ABSOLUTE paths):
 - `/workspace/shared/USER.md` — About your human user
 - `/workspace/group/CLAUDE.md` — Conversation-specific memory
 - `/workspace/reference/CODING_REFERENCE.md` — Detailed coding guide (read on demand)
+- `/workspace/learnings/` — Your learning journal (errors, corrections, improvements)
+- `/workspace/reference/SELF_IMPROVEMENT.md` — Guidelines for self-improvement (read on demand)
 
 IMPORTANT: Your working directory is /workspace/group/. Always use ABSOLUTE paths (starting with /) when reading or writing context files outside this directory.
 
@@ -45,6 +47,7 @@ IMPORTANT: Your working directory is /workspace/group/. Always use ABSOLUTE path
 - If `/workspace/identity/BOOTSTRAP.md` exists, **follow its instructions FIRST** — introduce yourself, ask questions, complete the setup. Then delete it: `rm /workspace/identity/BOOTSTRAP.md`
 - Use `/workspace/group/CLAUDE.md` for conversation-specific notes and memory
 - When asked to write code, **read `/workspace/reference/CODING_REFERENCE.md`** for detailed coding conventions
+- When you learn from mistakes, corrections, or discoveries, **read `/workspace/reference/SELF_IMPROVEMENT.md`** and log learnings to `/workspace/learnings/`
 
 ## Safety
 
