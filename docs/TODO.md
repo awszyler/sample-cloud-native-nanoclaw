@@ -11,6 +11,7 @@
 | [5](#5-system-prompt-builder-单元测试) | System Prompt Builder 单元测试 | 待编写 | 中 |
 | [6](#6-清理-agent-runtime-debug-代码) | 清理 agent-runtime debug 代码 | 待清理 | 高 |
 | [7](#7-旧-discord-gateway-manager-死代码清理) | 旧 Discord gateway-manager 死代码清理 | 待清理 | 低 |
+| [8](#8-model-selection-后续优化) | Model selection 后续优化 | 待实现 | 低 |
 
 ---
 
@@ -169,3 +170,17 @@ https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-permission
 ### 备注
 
 `channels/discord.ts` 中的 `verifyCredentials` 和 `getGatewayBot` 仍被 `channels/index.ts` 使用（channel 创建时验证凭证），不能直接删除。需要将验证逻辑迁移到 DiscordAdapter 后才能完全清理。
+
+---
+
+## 8. Model selection 后续优化
+
+**状态**: 待实现
+**日期**: 2026-03-17
+**优先级**: 低
+
+### 待改进
+
+- [ ] Dispatcher 测试补充 model 字段传递验证（`dispatcher.test.ts` 中无 model 相关测试）
+- [ ] 支持重置 model 为"使用默认值"（当前选择默认 Sonnet 仍会存储显式字符串，无法跟随 DEFAULT_MODEL 常量变化）
+- [ ] 考虑将 MODEL_PRESETS 和 DEFAULT_MODEL 提取到 `@clawbot/shared` 统一管理

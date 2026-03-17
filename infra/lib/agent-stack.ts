@@ -159,9 +159,9 @@ export class AgentStack extends cdk.Stack {
 
     this.agentScopedRole.addToPolicy(
       new iam.PolicyStatement({
-        sid: 'S3SharedRead',
+        sid: 'S3SharedData',
         effect: iam.Effect.ALLOW,
-        actions: ['s3:GetObject'],
+        actions: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
         resources: [
           `${dataBucket.bucketArn}/\${aws:PrincipalTag/userId}/shared/*`,
         ],
