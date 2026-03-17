@@ -107,10 +107,7 @@ async function _handleInvocation(
   // Ensure reference files available
   copyIfMissing(TEMPLATES, 'CODING_REFERENCE.md', '/workspace/reference');
 
-  // 4. Detect existing session (for resume)
-  const existingSessionId = detectExistingSession();
-
-  // 5. Build append content (managed policy + identity + channel + runtime)
+  // 4. Build append content (managed policy + identity + channel + runtime)
   const appendContent = buildAppendContent({
     botId,
     botName,
@@ -136,11 +133,10 @@ async function _handleInvocation(
   // 7. Resolve MCP server path (mcp-server.js in same dist directory)
   const mcpServerPath = path.join(__dirname, 'mcp-server.js');
 
-  // 8. Run Claude Agent SDK query
-  logger.info({ sessionId: existingSessionId || 'new' }, 'Starting agent query');
+  // 7. Run Claude Agent SDK query
+  logger.info('Starting agent query');
   const result = await runAgentQuery({
     prompt: agentPrompt,
-    sessionId: existingSessionId,
     mcpServerPath,
     sdkEnv,
     appendContent,
@@ -170,7 +166,6 @@ async function _handleInvocation(
 
 interface QueryParams {
   prompt: string;
-  sessionId: string | undefined;
   mcpServerPath: string;
   sdkEnv: Record<string, string | undefined>;
   appendContent: string;
@@ -183,7 +178,7 @@ interface QueryParams {
 }
 
 async function runAgentQuery(params: QueryParams): Promise<InvocationResult> {
-  const { prompt, sessionId, mcpServerPath, sdkEnv, appendContent, payload, logger } = params;
+  const { prompt, mcpServerPath, sdkEnv, appendContent, payload, logger } = params;
 
   let newSessionId: string | undefined;
   let lastResult: string | null = null;
@@ -214,7 +209,7 @@ async function runAgentQuery(params: QueryParams): Promise<InvocationResult> {
         model: payload.model || DEFAULT_MODEL,
         cwd: '/workspace/group',
         additionalDirectories: extraDirs.length > 0 ? extraDirs : undefined,
-        resume: sessionId,
+        continue: true,
         systemPrompt: {
           type: 'preset' as const,
           preset: 'claude_code' as const,
@@ -379,37 +374,6 @@ async function runAgentQuery(params: QueryParams): Promise<InvocationResult> {
 // ---------------------------------------------------------------------------
 // Session detection
 // ---------------------------------------------------------------------------
-
-/**
- * Detect if a previous session exists in the Claude state directory.
- * Session files are synced from S3 before this is called.
- */
-function detectExistingSession(): string | undefined {
-  const claudeDir = '/home/node/.claude';
-  const projectsDir = path.join(claudeDir, 'projects');
-
-  try {
-    if (!fs.existsSync(projectsDir)) return undefined;
-
-    // Look for session directories inside projects/
-    // Claude Code stores sessions under projects/{project-hash}/sessions/
-    const projectDirs = fs.readdirSync(projectsDir);
-    for (const projDir of projectDirs) {
-      const sessionsDir = path.join(projectsDir, projDir, 'sessions');
-      if (!fs.existsSync(sessionsDir)) continue;
-
-      const sessions = fs.readdirSync(sessionsDir).sort();
-      if (sessions.length > 0) {
-        // Return the most recent session ID
-        return sessions[sessions.length - 1];
-      }
-    }
-  } catch {
-    // No existing session found
-  }
-
-  return undefined;
-}
 
 // ---------------------------------------------------------------------------
 // Pre-compact hook — archive transcripts before compaction
