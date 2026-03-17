@@ -12,6 +12,7 @@
 | [6](#6-清理-agent-runtime-debug-代码) | 清理 agent-runtime debug 代码 | 待清理 | 高 |
 | [7](#7-旧-discord-gateway-manager-死代码清理) | 旧 Discord gateway-manager 死代码清理 | 待清理 | 低 |
 | [8](#8-model-selection-后续优化) | Model selection 后续优化 | 待实现 | 低 |
+| [9](#9-dispatcher-getgroup-热路径优化) | Dispatcher getGroup 热路径优化 | 待优化 | 中 |
 
 ---
 
@@ -184,3 +185,20 @@ https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-permission
 - [ ] Dispatcher 测试补充 model 字段传递验证（`dispatcher.test.ts` 中无 model 相关测试）
 - [ ] 支持重置 model 为"使用默认值"（当前选择默认 Sonnet 仍会存储显式字符串，无法跟随 DEFAULT_MODEL 常量变化）
 - [ ] 考虑将 MODEL_PRESETS 和 DEFAULT_MODEL 提取到 `@clawbot/shared` 统一管理
+
+---
+
+## 9. Dispatcher getGroup 热路径优化
+
+**状态**: 待优化
+**日期**: 2026-03-17
+**优先级**: 中
+
+### 问题描述
+
+`dispatchMessage()` 中为获取 `isGroupChat` 标志新增了 `getGroup()` DynamoDB 读取，每条入站消息额外一次读操作。
+
+### 待改进
+
+- [ ] 将 `isGroup` 信息提前到 webhook 层（SqsInboundPayload 中已有 group 信息时直接传递）
+- [ ] 或在 dispatcher 中缓存 group 记录（同一 group 短时间内多次查询）

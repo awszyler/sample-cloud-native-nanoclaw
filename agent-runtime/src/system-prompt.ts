@@ -9,16 +9,17 @@
  *   Dynamic sections  — assembled from context files + runtime config
  *
  * Section order:
- *   [Base Template]        — Role, Tools, Context Files, Safety, Communication Style
+ *   [Base Template]        — Role, Tools, Tool Call Style, Context Files, Safety, Communication Style
  *   1. Identity            — "You are {botName}..."
  *   2. Identity Context    — IDENTITY.md or Bot.systemPrompt fallback
  *   3. Soul               — SOUL.md (values and behavior)
  *   4. Bootstrap           — BOOTSTRAP.md (only for new sessions)
  *   5. Channel             — Channel-specific formatting guidance
  *   6. Reply Guide         — Response conventions
+ *   6.5 Anti-Loop          — Group chat anti-loop rules (only when isGroupChat)
  *   7. User Context        — USER.md (about the human user)
  *   8. Memory              — Shared + Bot Global + Group CLAUDE.md (with token budgets)
- *   9. Runtime             — Metadata line for debugging
+ *   9. Runtime             — Metadata line for debugging (includes model)
  */
 
 import { readFileSync } from 'fs';
