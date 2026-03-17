@@ -58,13 +58,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Set Chromium path for agent-browser / Puppeteer
-ENV AGENT_BROWSER_EXECUTABLE_PATH=/usr/bin/chromium
-ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV AGENT_BROWSER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
-# Install claude-code and agent-browser globally
-RUN npm install -g @anthropic-ai/claude-code agent-browser
+# Install claude-code and agent-browser globally, then install browser
+RUN npm install -g @anthropic-ai/claude-code agent-browser \
+    && agent-browser install || true
 
 # App setup
 WORKDIR /app
@@ -82,6 +83,9 @@ COPY agent-runtime/templates/ /app/templates/
 # Organization-level managed policy (read-only, injected into append content)
 RUN mkdir -p /etc/claude-code
 COPY agent-runtime/templates/MANAGED_CLAUDE.md /etc/claude-code/CLAUDE.md
+
+# Pre-bundled skills → /home/node/.claude/skills/
+COPY agent-runtime/skills/ /home/node/.claude/skills/
 
 # Workspace directories (mirrors NanoClaw's /workspace layout)
 RUN mkdir -p /workspace/group /workspace/learnings /workspace/reference /workspace/extra /home/node/.claude
