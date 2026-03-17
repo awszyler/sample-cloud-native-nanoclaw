@@ -28,6 +28,7 @@ export default function BotDetail() {
   const [modelSelection, setModelSelection] = useState<string>('');
   const [customModelId, setCustomModelId] = useState('');
   const [savingModel, setSavingModel] = useState(false);
+  const [modelStatus, setModelStatus] = useState<'saved' | 'error' | null>(null);
 
   useEffect(() => { if (botId) loadData(); }, [botId]);
 
@@ -64,11 +65,15 @@ export default function BotDetail() {
     const model = modelSelection === 'custom' ? customModelId.trim() : modelSelection;
     if (!model) return;
     setSavingModel(true);
+    setModelStatus(null);
     try {
       await botsApi.update(botId!, { model });
+      setModelStatus('saved');
+      setTimeout(() => setModelStatus(null), 2000);
       loadData();
     } catch (err) {
       console.error('Failed to save model:', err);
+      setModelStatus('error');
     } finally {
       setSavingModel(false);
     }
@@ -146,7 +151,7 @@ export default function BotDetail() {
               className="block w-full text-sm border rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-indigo-500 ml-7"
             />
           )}
-          <div>
+          <div className="flex items-center gap-3">
             <button
               onClick={saveModel}
               disabled={savingModel || (modelSelection === 'custom' && !customModelId.trim())}
@@ -154,6 +159,8 @@ export default function BotDetail() {
             >
               {savingModel ? 'Saving...' : 'Save Model'}
             </button>
+            {modelStatus === 'saved' && <span className="text-sm text-green-600">Saved</span>}
+            {modelStatus === 'error' && <span className="text-sm text-red-600">Failed to save</span>}
           </div>
         </div>
       </div>

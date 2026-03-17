@@ -84,6 +84,7 @@ export interface CreateBotRequest {
   name: string;
   description?: string;
   triggerPattern?: string;
+  model?: string;
 }
 
 export interface CreateChannelRequest {
