@@ -27,16 +27,16 @@
 
 ## 1. 产品定位
 
-ClawBot Cloud 是基于 NanoClaw 架构的多用户 AI 助手平台。用户通过 Web 控制台创建自己的 ClawBot，配置消息频道（Telegram、Discord、Slack 等），ClawBot 在云端隔离环境中运行 Claude Agent，自动响应用户的消息。
+NanoClaw on Cloud 是使用Claude Agent SDK开发的多用户 AI 助手平台（参考了NanoClaw 和 OpenClaw项目的设计）。用户通过 Web 控制台创建自己的NanoBot，配置消息频道（Telegram、Discord、Slack 等），NanoBot 在云端隔离环境中运行 Claude Agent，自动响应用户的消息。
 
 **核心用户场景：**
 
 ```
 1. 用户注册 → 登录 Web 控制台
-2. 创建一个 ClawBot（如 "工作助手"）
-3. 配置 Telegram 频道（填入自己的 Bot Token）
+2. 创建一个 NanoBot（如 "工作助手"）
+3. 配置 Slack 频道（填入自己的 Bot Token）
 4. 平台自动注册 Webhook，Bot 上线
-5. 用户在 Telegram 群里 @Bot，Bot 通过 Claude Agent 回复
+5. 用户在 Slack 群里 @Bot，Bot 通过 Claude Agent 回复
 6. 用户可创建多个 Bot（如 "生活助手"、"代码审查 Bot"）
 7. 每个 Bot 有独立记忆、独立频道、独立对话历史
 ```
