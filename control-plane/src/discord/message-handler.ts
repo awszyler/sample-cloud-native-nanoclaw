@@ -112,9 +112,10 @@ export async function handleDiscordMessage({
     }
   }
 
-  // If content is empty but we have attachments, generate a description as prompt
-  if (!content.trim() && attachments.length > 0) {
-    content = attachments.map((a) => `[Attached file: ${a.fileName || a.s3Key.split('/').pop()} (${a.mimeType})]`).join('\n');
+  // Append attachment info to content so agent knows what files are available
+  if (attachments.length > 0) {
+    const fileDescs = attachments.map((a) => `- ${a.fileName || a.s3Key.split('/').pop()} (${a.mimeType})`).join('\n');
+    content += `\n[Attached files — saved to /workspace/group/attachments/]\n${fileDescs}`;
   }
 
   // Group quota check
