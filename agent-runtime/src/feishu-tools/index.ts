@@ -5,23 +5,16 @@
  * based on available credentials and the enabled tool configuration.
  *
  * Individual tool implementations (doc, wiki, drive, perm) are registered
- * by their respective modules — Tasks 6/7 provide the full implementations.
+ * by their respective modules.
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type * as Lark from '@larksuiteoapi/node-sdk';
 import { getOrCreateLarkClient, type FeishuToolConfig } from './client.js';
+import { registerDocTool } from './doc-tool.js';
+import { registerWikiTool } from './wiki-tool.js';
 
-// ── Placeholder tool registration stubs ──────────────────────────────────────
-// These will be replaced with real implementations in Tasks 6 and 7.
-
-export function registerDocTool(_server: McpServer, _client: Lark.Client): void {
-  // Placeholder — implemented in Task 7 (feishu_doc)
-}
-
-export function registerWikiTool(_server: McpServer, _client: Lark.Client): void {
-  // Placeholder — implemented in Task 7 (feishu_wiki)
-}
+// ── Placeholder stubs for Task 8 (feishu_drive, feishu_perm) ────────────────
 
 export function registerDriveTool(_server: McpServer, _client: Lark.Client): void {
   // Placeholder — implemented in Task 8 (feishu_drive)
