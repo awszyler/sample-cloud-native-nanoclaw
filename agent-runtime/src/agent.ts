@@ -19,11 +19,14 @@
  */
 
 import fs, { rmSync, mkdirSync } from 'fs';
+import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { query, type HookCallback, type PreCompactHookInput } from '@anthropic-ai/claude-agent-sdk';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import type { S3Client } from '@aws-sdk/client-s3';
 import type pino from 'pino';
-import type { InvocationPayload, InvocationResult } from '@clawbot/shared';
+import type { InvocationPayload, InvocationResult, Attachment } from '@clawbot/shared';
 import { syncFromS3, syncToS3, type SyncPaths } from './session.js';
 import { buildAppendContent } from './system-prompt.js';
 import { getScopedClients } from './scoped-credentials.js';
@@ -93,6 +96,11 @@ async function _handleInvocation(
 
   logger.info({ sessionPath, groupJid }, 'Syncing session from S3');
   await syncFromS3(s3, SESSION_BUCKET, syncPaths, logger);
+
+  // 2b. Download inbound attachments to /workspace/group/attachments/
+  if (payload.attachments?.length) {
+    await downloadAttachments(s3, SESSION_BUCKET, payload.attachments, logger);
+  }
 
   // 3. Copy bot operating manual to ~/.claude/CLAUDE.md if not present (first run)
   const TEMPLATES = '/app/templates';
@@ -525,6 +533,35 @@ function sanitizeFilename(summary: string): string {
 function generateFallbackName(): string {
   const time = new Date();
   return `conversation-${time.getHours().toString().padStart(2, '0')}${time.getMinutes().toString().padStart(2, '0')}`;
+}
+
+// ---------------------------------------------------------------------------
+// Attachment download helper
+// ---------------------------------------------------------------------------
+
+async function downloadAttachments(
+  s3: S3Client,
+  bucket: string,
+  attachments: Attachment[],
+  logger: pino.Logger,
+): Promise<void> {
+  const attachDir = '/workspace/group/attachments';
+  await mkdir(attachDir, { recursive: true });
+
+  for (const att of attachments) {
+    try {
+      const fileName = att.fileName || att.s3Key.split('/').pop() || 'file';
+      const localPath = path.join(attachDir, fileName);
+      const resp = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: att.s3Key }));
+      if (resp.Body) {
+        const bytes = await resp.Body.transformToByteArray();
+        await writeFile(localPath, Buffer.from(bytes));
+        logger.info({ s3Key: att.s3Key, localPath, size: bytes.length }, 'Attachment downloaded');
+      }
+    } catch (err) {
+      logger.warn({ err, s3Key: att.s3Key }, 'Failed to download attachment, skipping');
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
