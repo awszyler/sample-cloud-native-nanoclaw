@@ -13,6 +13,9 @@
 | [7](#7-旧-discord-gateway-manager-死代码清理) | 旧 Discord gateway-manager 死代码清理 | 待清理 | 低 |
 | [8](#8-model-selection-后续优化) | Model selection 后续优化 | 待实现 | 低 |
 | [9](#9-dispatcher-getgroup-热路径优化) | Dispatcher getGroup 热路径优化 | 待优化 | 中 |
+| [10](#10-discord-message-handler-重复代码合并) | Discord message handler 重复代码合并 | 待重构 | 高 |
+| [11](#11-discord-gateway-leader-election-滚动更新问题) | Discord Gateway leader election 滚动更新问题 | 待修复 | 高 |
+| [12](#12-file-attachments-后续优化) | File attachments 后续优化 | 待实现 | 中 |
 
 ---
 
@@ -202,3 +205,64 @@ https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-permission
 
 - [ ] 将 `isGroup` 信息提前到 webhook 层（SqsInboundPayload 中已有 group 信息时直接传递）
 - [ ] 或在 dispatcher 中缓存 group 记录（同一 group 短时间内多次查询）
+
+---
+
+## 10. Discord message handler 重复代码合并
+
+**状态**: 待重构
+**日期**: 2026-03-18
+**优先级**: 高
+
+### 问题描述
+
+Discord 消息处理逻辑有两份独立的副本：
+- `control-plane/src/adapters/discord/index.ts`（Gateway 模式，实际使用的代码）
+- `control-plane/src/discord/message-handler.ts`（早期版本 / webhook fallback）
+
+两份代码各自维护附件处理、trigger 检查、SQS dispatch 逻辑。修改一处时容易遗漏另一处（已经发生多次）。
+
+### 待改进
+
+- [ ] 将消息处理逻辑抽成共享函数（如 `processDiscordMessage()`），两处调用同一函数
+- [ ] 或删除 `message-handler.ts`，统一由 Gateway adapter 处理（参考 TODO #7）
+
+---
+
+## 11. Discord Gateway leader election 滚动更新问题
+
+**状态**: 待修复
+**日期**: 2026-03-18
+**优先级**: 高
+
+### 问题描述
+
+ECS 滚动更新时，新 task 启动后看到旧 leader 的 DynamoDB lock 未过期，进入 standby。旧 task 被 drain 时可能来不及调 `releaseLock()`（ECS SIGTERM → 强制 kill），导致 lock 残留直到 TTL（60s）过期。期间 Discord Gateway 无 leader，bot 无法接收消息。
+
+### 现象
+
+每次 ECS force-new-deployment 后，Discord bot 有约 60-90 秒无响应窗口。
+
+### 待改进
+
+- [ ] 增大 ECS stop timeout（`stopTimeout`），给旧 task 足够时间优雅 shutdown 和 releaseLock
+- [ ] 或缩短 lock TTL（如 30s），减少无 leader 窗口
+- [ ] 或在 standby poll 中增加首次 poll 的 jitter，使其更快检测到 lock 过期
+- [ ] 考虑 ECS deployment circuit breaker 配置
+
+---
+
+## 12. File attachments 后续优化
+
+**状态**: 待实现
+**日期**: 2026-03-18
+**优先级**: 中
+
+### 来自 code review 的建议
+
+- [ ] MCP send_file: messageId 用 `Date.now()-${random}` 替代纯 `Date.now()` 防碰撞
+- [ ] Reply consumer: S3 key 验证是否属于预期 `{userId}/{botId}/attachments/` 前缀
+- [ ] Agent runtime: 下载附件改用 `Promise.allSettled` 并发（当前顺序下载）
+- [ ] Agent runtime: 清理旧 invocation 残留的 `/workspace/group/attachments/` 文件
+- [ ] S3 lifecycle rule: `attachments/` 前缀下的对象设置自动过期（避免无限累积）
+- [ ] File reply flow 单元测试（reply consumer 的 text vs file 分支）
