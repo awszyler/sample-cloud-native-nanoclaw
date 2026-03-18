@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { channels as channelsApi } from '../lib/api';
 
-type ChannelType = 'telegram' | 'discord' | 'slack';
+type ChannelType = 'telegram' | 'discord' | 'slack' | 'feishu';
 
 interface FieldDef {
   name: string;
@@ -20,6 +20,13 @@ const channelFields: Record<ChannelType, FieldDef[]> = {
   slack: [
     { name: 'botToken', label: 'Bot Token', placeholder: 'xoxb-...' },
     { name: 'signingSecret', label: 'Signing Secret', placeholder: '32-character hex string' },
+  ],
+  feishu: [
+    { name: 'appId', label: 'App ID', placeholder: 'cli_xxxxxxxxxxxxxxxx' },
+    { name: 'appSecret', label: 'App Secret', placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', type: 'password' },
+    { name: 'encryptKey', label: 'Encrypt Key', placeholder: 'Encrypt Key from event subscription settings', type: 'password' },
+    { name: 'verificationToken', label: 'Verification Token', placeholder: 'Verification Token from event subscription settings', type: 'password' },
+    { name: 'domain', label: 'Domain', placeholder: 'feishu' },
   ],
 };
 
@@ -369,6 +376,157 @@ function DiscordGuide({ botId, step }: { botId: string; step: 'before' | 'after'
   );
 }
 
+function FeishuGuide({ botId, step }: { botId: string; step: 'before' | 'after' }) {
+  const webhookUrl = `${window.location.origin}/webhook/feishu/${botId}`;
+
+  if (step === 'before') {
+    return (
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-4 text-sm">
+        <h3 className="font-semibold text-blue-900 text-base">飞书机器人配置指南</h3>
+
+        <div className="space-y-3">
+          <div className="flex gap-3">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">1</span>
+            <div>
+              <p className="font-medium text-blue-900">创建自建应用</p>
+              <p className="text-blue-700 mt-0.5">
+                打开 <a href="https://open.feishu.cn" target="_blank" rel="noopener noreferrer" className="underline font-medium">飞书开放平台 (open.feishu.cn)</a> &rarr; <strong>创建自建应用</strong>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">2</span>
+            <div>
+              <p className="font-medium text-blue-900">获取 App ID 和 App Secret</p>
+              <p className="text-blue-700 mt-0.5">
+                在应用的 <strong>凭证与基础信息</strong> 页面获取 App ID 和 App Secret
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">3</span>
+            <div>
+              <p className="font-medium text-blue-900">获取 Encrypt Key 和 Verification Token</p>
+              <p className="text-blue-700 mt-0.5">
+                在「<strong>事件与回调</strong>」中获取 Encrypt Key 和 Verification Token
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">4</span>
+            <div>
+              <p className="font-medium text-blue-900">申请权限</p>
+              <p className="text-blue-700 mt-0.5">
+                在「<strong>权限管理</strong>」中申请以下权限：
+              </p>
+              <ul className="mt-1 ml-4 list-disc text-blue-700 space-y-0.5">
+                <li><code className="bg-blue-100 px-1 rounded">im:message</code> — 读取消息</li>
+                <li><code className="bg-blue-100 px-1 rounded">im:message:send_as_bot</code> — 以机器人身份发送消息</li>
+                <li><code className="bg-blue-100 px-1 rounded">im:resource</code> — 读取消息中的资源文件</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">5</span>
+            <div>
+              <p className="font-medium text-blue-900">发布应用版本</p>
+              <p className="text-blue-700 mt-0.5">
+                创建并发布一个应用版本，等待管理员审核通过
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-blue-200 pt-3 mt-3">
+          <p className="text-blue-800 font-medium">填写以下凭证信息，然后点击「Connect Channel」。连接成功后会显示 Webhook 配置说明。</p>
+        </div>
+      </div>
+    );
+  }
+
+  // step === 'after'
+  return (
+    <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-4 text-sm">
+      <div className="flex items-center gap-2">
+        <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h3 className="font-semibold text-green-900 text-base">飞书渠道已连接!</h3>
+      </div>
+
+      <p className="text-green-800">凭证验证通过并已安全存储。请在飞书开放平台完成以下配置：</p>
+
+      <div className="space-y-3">
+        <div className="flex gap-3">
+          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-600 text-white text-xs flex items-center justify-center font-bold">1</span>
+          <div>
+            <p className="font-medium text-green-900">配置事件订阅请求地址</p>
+            <p className="text-green-700 mt-0.5">事件订阅 &rarr; 请求地址，粘贴以下 URL：</p>
+            <div className="mt-1.5 flex items-center gap-2">
+              <code className="flex-1 bg-white border border-green-300 rounded px-3 py-2 text-xs font-mono text-green-900 break-all select-all">
+                {webhookUrl}
+              </code>
+              <button
+                type="button"
+                onClick={() => navigator.clipboard.writeText(webhookUrl)}
+                className="flex-shrink-0 px-2 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
+                title="Copy URL"
+              >
+                Copy
+              </button>
+            </div>
+            <p className="text-green-600 mt-1 text-xs">飞书会发送验证请求，验证通过后会显示绿色勾号</p>
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-600 text-white text-xs flex items-center justify-center font-bold">2</span>
+          <div>
+            <p className="font-medium text-green-900">订阅事件</p>
+            <p className="text-green-700 mt-0.5">
+              添加事件：<code className="bg-green-100 px-1 rounded">im.message.receive_v1</code>
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-600 text-white text-xs flex items-center justify-center font-bold">3</span>
+          <div>
+            <p className="font-medium text-green-900">启用机器人能力</p>
+            <p className="text-green-700 mt-0.5">
+              在「<strong>应用能力</strong>」中启用「<strong>机器人</strong>」能力
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-600 text-white text-xs flex items-center justify-center font-bold">4</span>
+          <div>
+            <p className="font-medium text-green-900">添加机器人到群组</p>
+            <p className="text-green-700 mt-0.5">
+              将机器人添加到目标群组
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-600 text-white text-xs flex items-center justify-center font-bold">5</span>
+          <div>
+            <p className="font-medium text-green-900">测试</p>
+            <p className="text-green-700 mt-0.5">
+              在群组中 @机器人 或私聊发消息进行测试
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ChannelSetup() {
   const { botId } = useParams<{ botId: string }>();
   const navigate = useNavigate();
@@ -431,6 +589,21 @@ export default function ChannelSetup() {
     );
   }
 
+  if (connected && channelType === 'feishu') {
+    return (
+      <div className="max-w-2xl mx-auto space-y-4">
+        <h1 className="text-2xl font-bold text-gray-900">Add Channel</h1>
+        <FeishuGuide botId={botId!} step="after" />
+        <button
+          onClick={() => navigate(`/bots/${botId}`)}
+          className="w-full py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm"
+        >
+          Done — Back to Bot
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Add Channel</h1>
@@ -440,14 +613,14 @@ export default function ChannelSetup() {
 
         <div className="bg-white p-6 rounded-lg shadow">
           <label className="block text-sm font-medium text-gray-700 mb-2">Channel Type</label>
-          <div className="grid grid-cols-3 gap-3">
-            {(['telegram', 'discord', 'slack'] as ChannelType[]).map((type) => (
+          <div className="grid grid-cols-4 gap-3">
+            {(['telegram', 'discord', 'slack', 'feishu'] as ChannelType[]).map((type) => (
               <button key={type} type="button"
-                onClick={() => { setChannelType(type); setCredentials({}); setError(''); setConnected(false); }}
+                onClick={() => { setChannelType(type); setCredentials(type === 'feishu' ? { domain: 'feishu' } : {}); setError(''); setConnected(false); }}
                 className={`p-3 rounded-lg border-2 text-center text-sm font-medium transition-colors capitalize ${
                   channelType === type ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 hover:border-gray-300'
                 }`}>
-                {type === 'telegram' ? 'Telegram' : type === 'discord' ? 'Discord' : 'Slack'}
+                {type === 'telegram' ? 'Telegram' : type === 'discord' ? 'Discord' : type === 'slack' ? 'Slack' : 'Feishu'}
               </button>
             ))}
           </div>
@@ -457,6 +630,7 @@ export default function ChannelSetup() {
         {channelType === 'slack' && <SlackGuide botId={botId!} step="before" />}
         {channelType === 'telegram' && <TelegramGuide />}
         {channelType === 'discord' && <DiscordGuide botId={botId!} step="before" />}
+        {channelType === 'feishu' && <FeishuGuide botId={botId!} step="before" />}
 
         {/* Credential fields */}
         {channelType && (
@@ -465,10 +639,21 @@ export default function ChannelSetup() {
             {channelFields[channelType].map((field) => (
               <div key={field.name}>
                 <label className="block text-sm font-medium text-gray-700">{field.label}</label>
-                <input type={field.type || 'text'} required placeholder={field.placeholder}
-                  value={credentials[field.name] || ''}
-                  onChange={e => setCredentials(prev => ({ ...prev, [field.name]: e.target.value }))}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm" />
+                {channelType === 'feishu' && field.name === 'domain' ? (
+                  <select
+                    value={credentials.domain || 'feishu'}
+                    onChange={e => setCredentials(prev => ({ ...prev, domain: e.target.value }))}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                  >
+                    <option value="feishu">飞书 (feishu.cn)</option>
+                    <option value="lark">Lark (larksuite.com)</option>
+                  </select>
+                ) : (
+                  <input type={field.type || 'text'} required placeholder={field.placeholder}
+                    value={credentials[field.name] || ''}
+                    onChange={e => setCredentials(prev => ({ ...prev, [field.name]: e.target.value }))}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm" />
+                )}
               </div>
             ))}
 

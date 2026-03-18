@@ -26,7 +26,7 @@ import type { ChannelConfig, CreateChannelRequest } from '@clawbot/shared';
 const secrets = new SecretsManagerClient({ region: config.region });
 
 const createChannelSchema = z.object({
-  channelType: z.enum(['telegram', 'discord', 'slack', 'whatsapp']),
+  channelType: z.enum(['telegram', 'discord', 'slack', 'whatsapp', 'feishu']),
   credentials: z.record(z.string(), z.string()),
 });
 
@@ -99,6 +99,7 @@ export const channelsRoutes: FastifyPluginAsync = async (app) => {
       verifiedInfo.botId ||
       verifiedInfo.applicationId ||
       verifiedInfo.botUserId ||
+      verifiedInfo.botOpenId ||
       'default';
 
     // 5. Build webhook URL
@@ -118,11 +119,12 @@ export const channelsRoutes: FastifyPluginAsync = async (app) => {
       );
       webhookRegistered = true;
     } else {
-      // Discord, Slack, WhatsApp require manual webhook configuration
+      // Discord, Slack, WhatsApp, Feishu require manual webhook configuration
       const instructions: Record<string, string> = {
         discord: `Go to Discord Developer Portal > Application > "Interactions Endpoint URL" and set it to: ${webhookUrl}`,
         slack: `Go to Slack App settings > "Event Subscriptions" > "Request URL" and set it to: ${webhookUrl}`,
         whatsapp: `Go to Meta Developer Portal > WhatsApp > Configuration > "Callback URL" and set it to: ${webhookUrl}`,
+        feishu: `请在飞书开放平台完成以下配置：\n1. 事件订阅 → 请求地址: ${webhookUrl}\n2. 订阅事件: im.message.receive_v1\n3. 启用「机器人」能力\n4. 将机器人添加到目标群组`,
       };
       setupInstructions = instructions[body.channelType];
     }
