@@ -229,6 +229,11 @@ export const slackWebhook: FastifyPluginAsync = async (app) => {
           }
         }
 
+        // 7b. If content is empty but we have attachments, generate description
+        if (!content.trim() && attachments.length > 0) {
+          content = attachments.map((a) => `[Attached file: ${a.fileName || a.s3Key.split('/').pop()} (${a.mimeType})]`).join('\n');
+        }
+
         // 8. Ensure group exists
         await getOrCreateGroup(botId, groupJid, chatName, 'slack', isGroup);
 

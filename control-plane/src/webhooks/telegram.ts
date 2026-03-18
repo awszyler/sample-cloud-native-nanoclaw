@@ -228,6 +228,11 @@ export const telegramWebhook: FastifyPluginAsync = async (app) => {
           }
         }
 
+        // 6b. If content is empty but we have attachments, generate description
+        if (!content.trim() && attachments.length > 0) {
+          content = attachments.map((a) => `[Attached file: ${a.fileName || a.s3Key.split('/').pop()} (${a.mimeType})]`).join('\n');
+        }
+
         // 7. Ensure group exists in DynamoDB
         await getOrCreateGroup(botId, groupJid, chatName, 'telegram', isGroup);
 

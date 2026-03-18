@@ -112,6 +112,11 @@ export async function handleDiscordMessage({
     }
   }
 
+  // If content is empty but we have attachments, generate a description as prompt
+  if (!content.trim() && attachments.length > 0) {
+    content = attachments.map((a) => `[Attached file: ${a.fileName || a.s3Key.split('/').pop()} (${a.mimeType})]`).join('\n');
+  }
+
   // Group quota check
   const existingGroups = await listGroups(botId);
   const isNewGroup = !existingGroups.find((g) => g.groupJid === groupJid);
