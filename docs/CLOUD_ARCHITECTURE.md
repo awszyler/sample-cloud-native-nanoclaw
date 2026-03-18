@@ -27,7 +27,7 @@
 
 ## 1. 产品定位
 
-NanoClaw on Cloud 是使用Claude Agent SDK开发的多用户 AI 助手平台（参考了NanoClaw 和 OpenClaw项目的设计）。用户通过 Web 控制台创建自己的NanoBot，配置消息频道（Telegram、Discord、Slack 等），NanoBot 在云端隔离环境中运行 Claude Agent，自动响应用户的消息。
+NanoClaw on Cloud 是使用Claude Agent SDK开发的基于AWS Serverless 云原生的多用户"小龙虾"平台（参考了NanoClaw 和 OpenClaw项目的设计）。用户通过 Web 控制台创建自己的NanoBot，配置消息频道（Telegram、Discord、Slack 等），NanoBot 在云端mircoVM沙盒隔离环境中运行 Claude Agent，提供支持SKILL扩展，浏览器等扩展能力，通过mircoVM沙盒赋予"小龙虾", 虚拟机级别安全隔离的，秒级冷启，Serverless的企业级云原生解决方案。并通过控制平面，实现小龙虾们**在企业层面，可控管，可观测，数据可见**，是企业级“小龙虾应用”推荐方案。
 
 **核心用户场景：**
 
