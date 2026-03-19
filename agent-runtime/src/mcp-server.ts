@@ -114,9 +114,18 @@ CONTEXT MODE - Choose based on task type:
 \u2022 "isolated": Task runs in a fresh session with no conversation history.
 
 SCHEDULE VALUE FORMAT (all times are LOCAL timezone):
-\u2022 cron: Standard cron expression (e.g., "*/5 * * * *" for every 5 minutes, "0 9 * * *" for daily at 9am)
-\u2022 interval: Milliseconds between runs (e.g., "300000" for 5 minutes)
-\u2022 once: Local time WITHOUT "Z" suffix (e.g., "2026-02-01T15:30:00")`,
+\u2022 cron: MUST use standard 5-field format: "minute hour day-of-month month day-of-week"
+  Do NOT use 6-field AWS cron, "?" wildcards, or seconds field.
+  Examples:
+    "0 8 * * *"     = daily at 8:00
+    "0 9 * * 1-5"   = weekdays at 9:00
+    "*/30 * * * *"   = every 30 minutes
+    "0 0 1 * *"     = first day of month at midnight
+  Day-of-week: 0=Sunday, 1=Monday ... 6=Saturday
+\u2022 interval: Milliseconds between runs (min 60000). Examples: "300000" (5 min), "3600000" (1 hour)
+\u2022 once: Local time WITHOUT "Z" suffix. Example: "2026-02-01T15:30:00"
+
+IMPORTANT: Only call this tool ONCE per task. If it fails, read the error message and fix — do not retry with random format variations.`,
   {
     prompt: z
       .string()
@@ -131,7 +140,7 @@ SCHEDULE VALUE FORMAT (all times are LOCAL timezone):
     schedule_value: z
       .string()
       .describe(
-        'cron: "*/5 * * * *" | interval: milliseconds like "300000" | once: local timestamp like "2026-02-01T15:30:00" (no Z suffix!)',
+        'cron: 5-field only, e.g. "0 8 * * *" (no ? or 6-field) | interval: milliseconds e.g. "300000" | once: local time e.g. "2026-02-01T15:30:00" (no Z!)',
       ),
     context_mode: z
       .enum(['group', 'isolated'])
@@ -234,7 +243,7 @@ server.tool(
 // --- update_task ---
 server.tool(
   'update_task',
-  'Update an existing scheduled task. Only provided fields are changed.',
+  'Update an existing scheduled task. Only provided fields are changed. Cron format: 5-field only "minute hour dom month dow" (e.g. "0 8 * * *"). No ? wildcards or 6-field format.',
   {
     task_id: z.string().describe('The task ID to update'),
     prompt: z.string().optional().describe('New prompt for the task'),

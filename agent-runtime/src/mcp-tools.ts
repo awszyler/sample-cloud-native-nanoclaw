@@ -185,34 +185,11 @@ export async function scheduleTask(
   const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const now = new Date().toISOString();
 
-  // 1. Write task record to DynamoDB
-  const task: ScheduledTask = {
-    botId: ctx.botId,
-    taskId,
-    groupJid: ctx.groupJid,
-    prompt,
-    scheduleType,
-    scheduleValue,
-    contextMode,
-    status: 'active',
-    nextRun: computeNextRun(scheduleType, scheduleValue),
-    lastRun: undefined,
-    lastResult: undefined,
-    createdAt: now,
-  };
-
-  await ctx.clients.dynamodb.send(
-    new PutCommand({
-      TableName: TASKS_TABLE,
-      Item: task,
-    }),
-  );
-
-  // 2. Create EventBridge Scheduler schedule
+  // 1. Create EventBridge Scheduler schedule FIRST (fail early, no orphan DB records)
   const scheduleName = `nanoclawbot-${ctx.botId}-${taskId}`;
   const scheduleExpression = toEventBridgeExpression(scheduleType, scheduleValue);
 
-  await ctx.clients.scheduler.send(
+  const scheduleResult = await ctx.clients.scheduler.send(
     new CreateScheduleCommand({
       Name: scheduleName,
       ScheduleExpression: scheduleExpression,
@@ -232,6 +209,30 @@ export async function scheduleTask(
           MessageGroupId: `${ctx.botId}#${ctx.groupJid}`,
         },
       },
+    }),
+  );
+
+  // 2. Write task record to DynamoDB only after EventBridge succeeds
+  const task: ScheduledTask = {
+    botId: ctx.botId,
+    taskId,
+    groupJid: ctx.groupJid,
+    prompt,
+    scheduleType,
+    scheduleValue,
+    contextMode,
+    status: 'active',
+    nextRun: computeNextRun(scheduleType, scheduleValue),
+    lastRun: undefined,
+    lastResult: undefined,
+    eventbridgeScheduleArn: scheduleResult.ScheduleArn,
+    createdAt: now,
+  };
+
+  await ctx.clients.dynamodb.send(
+    new PutCommand({
+      TableName: TASKS_TABLE,
+      Item: task,
     }),
   );
 
@@ -495,11 +496,19 @@ function toEventBridgeExpression(scheduleType: string, scheduleValue: string): s
 // ---------------------------------------------------------------------------
 
 export function validateCron(value: string): string | null {
+  // Reject AWS 6-field cron or ? wildcards
+  if (value.includes('?')) {
+    return 'Invalid cron: Do not use "?" wildcard. Use standard 5-field format: "minute hour day-of-month month day-of-week". Example: "0 8 * * *"';
+  }
+  const fields = value.trim().split(/\s+/);
+  if (fields.length !== 5) {
+    return `Invalid cron: Expected 5 fields but got ${fields.length}. Use format: "minute hour day-of-month month day-of-week". Example: "0 8 * * *"`;
+  }
   try {
     CronExpressionParser.parse(value);
     return null;
   } catch {
-    return `Invalid cron: "${value}". Use format like "0 9 * * *" (daily 9am) or "*/5 * * * *" (every 5 min).`;
+    return `Invalid cron: "${value}". Use 5-field format like "0 9 * * *" (daily 9am) or "*/5 * * * *" (every 5 min).`;
   }
 }
 
