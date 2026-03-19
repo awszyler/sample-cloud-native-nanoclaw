@@ -1,7 +1,7 @@
 // ClawBot Cloud — Webhook Signature Verification
 // Per-channel verification of inbound webhook authenticity
 
-import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 // ── Telegram ────────────────────────────────────────────────────────────────
 // Telegram sends a secret token in X-Telegram-Bot-Api-Secret-Token header.
@@ -120,33 +120,6 @@ export function verifySlackSignature(
 }
 
 // ── Feishu ──────────────────────────────────────────────────────────────────
-// Feishu (飞书/Lark) Event Subscription verification.
-// Signature = SHA256(timestamp + nonce + encryptKey + body)
-// Compared with X-Lark-Signature header using constant-time comparison.
-
-const FEISHU_MAX_AGE_SECONDS = 5 * 60; // 5 minutes replay window
-
-export function verifyFeishuSignature(
-  timestamp: string,
-  nonce: string,
-  encryptKey: string,
-  body: string,
-  signature: string,
-): boolean {
-  if (!timestamp || !nonce || !encryptKey || !body || !signature) return false;
-
-  // Reject requests older than 5 minutes to prevent replay attacks
-  const tsNum = Number(timestamp);
-  if (isNaN(tsNum)) return false;
-  const age = Math.abs(Math.floor(Date.now() / 1000) - tsNum);
-  if (age > FEISHU_MAX_AGE_SECONDS) return false;
-
-  const content = timestamp + nonce + encryptKey + body;
-  const expected = createHash('sha256').update(content).digest('hex');
-
-  // Constant-time comparison
-  const expectedBuf = Buffer.from(expected);
-  const signatureBuf = Buffer.from(signature);
-  if (expectedBuf.length !== signatureBuf.length) return false;
-  return timingSafeEqual(expectedBuf, signatureBuf);
-}
+// Feishu now uses WebSocket (WSClient) instead of webhooks.
+// Signature verification is no longer needed — the Lark SDK handles
+// authentication internally over the WebSocket connection.

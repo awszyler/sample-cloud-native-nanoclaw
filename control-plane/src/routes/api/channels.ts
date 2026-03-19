@@ -21,6 +21,7 @@ import {
 import { getChannelCredentials } from '../../services/cached-lookups.js';
 import { verifyChannelCredentials } from '../../channels/index.js';
 import * as telegram from '../../channels/telegram.js';
+import { getFeishuGatewayManager } from '../../feishu/gateway-manager.js';
 import type { ChannelConfig, CreateChannelRequest } from '@clawbot/shared';
 
 const secrets = new SecretsManagerClient({ region: config.region });
@@ -108,7 +109,7 @@ export const channelsRoutes: FastifyPluginAsync = async (app) => {
     const webhookUrl = `${webhookBase}/webhook/${body.channelType}/${botId}`;
 
     // 6. Register webhook with channel provider
-    let webhookRegistered = false;
+    let autoConnected = false;
     let setupInstructions: string | undefined;
 
     if (body.channelType === 'telegram') {
@@ -117,14 +118,17 @@ export const channelsRoutes: FastifyPluginAsync = async (app) => {
         webhookUrl,
         webhookSecret!,
       );
-      webhookRegistered = true;
+      autoConnected = true;
+    } else if (body.channelType === 'feishu') {
+      // Feishu uses WebSocket (WSClient) — no webhook URL needed.
+      // Connection is established automatically via the gateway manager.
+      autoConnected = true;
     } else {
-      // Discord, Slack, WhatsApp, Feishu require manual webhook configuration
+      // Discord, Slack, WhatsApp require manual webhook configuration
       const instructions: Record<string, string> = {
         discord: `Go to Discord Developer Portal > Application > "Interactions Endpoint URL" and set it to: ${webhookUrl}`,
         slack: `Go to Slack App settings > "Event Subscriptions" > "Request URL" and set it to: ${webhookUrl}`,
         whatsapp: `Go to Meta Developer Portal > WhatsApp > Configuration > "Callback URL" and set it to: ${webhookUrl}`,
-        feishu: `请在飞书开放平台完成以下配置：\n1. 事件订阅 → 请求地址: ${webhookUrl}\n2. 订阅事件: im.message.receive_v1\n3. 启用「机器人」能力\n4. 将机器人添加到目标群组`,
       };
       setupInstructions = instructions[body.channelType];
     }
@@ -136,7 +140,7 @@ export const channelsRoutes: FastifyPluginAsync = async (app) => {
       channelId,
       credentialSecretArn: secretResult.ARN || secretName,
       webhookUrl,
-      status: webhookRegistered ? 'connected' : 'pending_webhook',
+      status: autoConnected ? 'connected' : 'pending_webhook',
       healthStatus: 'healthy',
       consecutiveFailures: 0,
       config: verifiedInfo,
@@ -148,6 +152,16 @@ export const channelsRoutes: FastifyPluginAsync = async (app) => {
     // Auto-activate bot when first channel is connected
     if (bot.status === 'created') {
       await updateBot(request.userId, botId, { status: 'active' });
+    }
+
+    // Signal the Feishu gateway manager to add this bot's WSClient
+    if (body.channelType === 'feishu') {
+      const feishuGw = getFeishuGatewayManager();
+      if (feishuGw) {
+        feishuGw.addBot(botId).catch((err) => {
+          request.log.error({ err, botId }, 'Failed to add Feishu WSClient for new channel');
+        });
+      }
     }
 
     return reply.status(201).send({
@@ -305,6 +319,14 @@ export const channelsRoutes: FastifyPluginAsync = async (app) => {
         );
       } catch {
         // Best effort — secret may not exist
+      }
+
+      // Signal the Feishu gateway manager to remove this bot's WSClient
+      if (channelType === 'feishu') {
+        const feishuGw = getFeishuGatewayManager();
+        if (feishuGw) {
+          feishuGw.removeBot(botId);
+        }
       }
 
       // Delete channel record

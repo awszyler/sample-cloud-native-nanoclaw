@@ -34,13 +34,13 @@ ClawBot Cloud 当前支持 Telegram、Discord、Slack、WhatsApp 四个消息频
 
 | 决策项 | 选择 | 原因 |
 |--------|------|------|
-| 连接模式 | **Webhook 模式** (首选) | 与 Telegram/Slack 一致的无状态架构，Fargate 多副本无需 Leader 选举 |
-| SDK 选择 | `@larksuiteoapi/node-sdk` | OpenClaw 已验证，官方维护，覆盖所有飞书 API |
+| 连接模式 | **WebSocket 长连接** (WSClient) | 无需公网回调地址，更低延迟，SDK 自动重连，参照 Discord Gateway + Leader 选举模式 |
+| SDK 选择 | `@larksuiteoapi/node-sdk` | OpenClaw 已验证，官方维护，覆盖所有飞书 API，内置 WSClient |
 | 消息格式 | 卡片消息 (Interactive Card) | 比纯文本更好的 Markdown 渲染和交互能力 |
 | 回退方案 | 纯文本消息 | 卡片失败时降级为 text 消息 |
-| 签名验证 | SHA256(timestamp + nonce + encryptKey + body) | 飞书官方标准验证方式 |
+| Leader 选举 | DynamoDB 锁 (独立于 Discord) | Fargate 多副本场景下确保只有一个实例持有 WSClient 连接，使用 `feishu-gateway-leader` 锁键 |
 
-> **WebSocket 模式说明：** OpenClaw 支持 WebSocket 作为默认模式（更低延迟、无需公网 Webhook）。未来可考虑参照 Discord Gateway + Leader 选举模式支持 WebSocket，但初期采用 Webhook 模式以保持架构一致性。
+> **WebSocket 模式说明：** 使用 Lark SDK 内置的 `WSClient` 建立长连接，通过 `EventDispatcher` 注册 `im.message.receive_v1` 事件处理器。SDK 自动处理连接保活和断线重连。消息处理逻辑提取为独立的 `handleFeishuMessage()` 函数，与 Discord 的 `handleDiscordMessage()` 模式一致。用户无需在飞书开放平台配置回调 URL，只需在事件订阅设置中选择「使用长连接接收事件」。
 
 ### 2.2 凭证与配置
 
@@ -384,7 +384,7 @@ Agent Runtime:
 
 ### Phase 3: 增强功能 (后续)
 
-- WebSocket 连接模式 + Leader 选举
+- ~~WebSocket 连接模式 + Leader 选举~~ (已实现 — FeishuGatewayManager + DynamoDB leader election)
 - 话题线程会话隔离 (`group_topic` scope)
 - Typing 指示器 (Reaction API)
 - 飞书卡片交互回调处理

@@ -376,9 +376,7 @@ function DiscordGuide({ botId, step }: { botId: string; step: 'before' | 'after'
   );
 }
 
-function FeishuGuide({ botId, step }: { botId: string; step: 'before' | 'after' }) {
-  const webhookUrl = `${window.location.origin}/webhook/feishu/${botId}`;
-
+function FeishuGuide({ step }: { step: 'before' | 'after' }) {
   if (step === 'before') {
     return (
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-4 text-sm">
@@ -471,7 +469,7 @@ function FeishuGuide({ botId, step }: { botId: string; step: 'before' | 'after' 
         </div>
 
         <div className="border-t border-blue-200 pt-3 mt-3">
-          <p className="text-blue-800 font-medium">填写以下凭证信息，然后点击「Connect Channel」。连接成功后会显示 Webhook 配置说明。</p>
+          <p className="text-blue-800 font-medium">填写以下凭证信息，然后点击「Connect Channel」。WebSocket 连接将自动建立，无需额外配置回调地址。</p>
         </div>
       </div>
     );
@@ -487,28 +485,18 @@ function FeishuGuide({ botId, step }: { botId: string; step: 'before' | 'after' 
         <h3 className="font-semibold text-green-900 text-base">飞书渠道已连接!</h3>
       </div>
 
-      <p className="text-green-800">凭证验证通过并已安全存储。请在飞书开放平台完成以下配置：</p>
+      <p className="text-green-800">凭证验证通过并已安全存储。WebSocket 长连接已自动建立，无需额外配置回调地址。</p>
+
+      <p className="text-green-800">请确认飞书开放平台已完成以下配置：</p>
 
       <div className="space-y-3">
         <div className="flex gap-3">
           <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-600 text-white text-xs flex items-center justify-center font-bold">1</span>
           <div>
-            <p className="font-medium text-green-900">配置事件订阅请求地址</p>
-            <p className="text-green-700 mt-0.5">事件订阅 &rarr; 请求地址，粘贴以下 URL：</p>
-            <div className="mt-1.5 flex items-center gap-2">
-              <code className="flex-1 bg-white border border-green-300 rounded px-3 py-2 text-xs font-mono text-green-900 break-all select-all">
-                {webhookUrl}
-              </code>
-              <button
-                type="button"
-                onClick={() => navigator.clipboard.writeText(webhookUrl)}
-                className="flex-shrink-0 px-2 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
-                title="Copy URL"
-              >
-                Copy
-              </button>
-            </div>
-            <p className="text-green-600 mt-1 text-xs">飞书会发送验证请求，验证通过后会显示绿色勾号</p>
+            <p className="font-medium text-green-900">配置事件订阅方式</p>
+            <p className="text-green-700 mt-0.5">
+              在「<strong>事件与回调</strong>」的事件订阅设置中，选择「<strong>使用长连接接收事件</strong>」方式
+            </p>
           </div>
         </div>
 
@@ -517,7 +505,7 @@ function FeishuGuide({ botId, step }: { botId: string; step: 'before' | 'after' 
           <div>
             <p className="font-medium text-green-900">订阅事件</p>
             <p className="text-green-700 mt-0.5">
-              添加事件：<code className="bg-green-100 px-1 rounded">im.message.receive_v1</code>
+              添加事件：<code className="bg-green-100 px-1 rounded">im.message.receive_v1</code>（接收消息）
             </p>
           </div>
         </div>
@@ -622,7 +610,7 @@ export default function ChannelSetup() {
     return (
       <div className="max-w-2xl mx-auto space-y-4">
         <h1 className="text-2xl font-bold text-gray-900">Add Channel</h1>
-        <FeishuGuide botId={botId!} step="after" />
+        <FeishuGuide step="after" />
         <button
           onClick={() => navigate(`/bots/${botId}`)}
           className="w-full py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm"
@@ -659,7 +647,7 @@ export default function ChannelSetup() {
         {channelType === 'slack' && <SlackGuide botId={botId!} step="before" />}
         {channelType === 'telegram' && <TelegramGuide />}
         {channelType === 'discord' && <DiscordGuide botId={botId!} step="before" />}
-        {channelType === 'feishu' && <FeishuGuide botId={botId!} step="before" />}
+        {channelType === 'feishu' && <FeishuGuide step="before" />}
 
         {/* Credential fields */}
         {channelType && (
