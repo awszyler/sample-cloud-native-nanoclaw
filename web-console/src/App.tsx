@@ -5,7 +5,6 @@ import Dashboard from './pages/Dashboard';
 import BotDetail from './pages/BotDetail';
 import ChannelSetup from './pages/ChannelSetup';
 import Messages from './pages/Messages';
-import Tasks from './pages/Tasks';
 import MemoryEditor from './pages/MemoryEditor';
 import Settings from './pages/Settings';
 import UserList from './pages/admin/UserList';
@@ -16,12 +15,14 @@ export default function App() {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>;
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-accent-500 border-t-transparent" />
+      </div>
+    );
   }
 
-  if (!user) {
-    return <Login />;
-  }
+  if (!user) return <Login />;
 
   return (
     <Layout>
@@ -31,10 +32,7 @@ export default function App() {
         <Route path="/bots/:botId/channels/new" element={<ChannelSetup />} />
         <Route path="/bots/:botId/channels/setup" element={<ChannelSetup />} />
         <Route path="/bots/:botId/messages/:groupJid" element={<Messages />} />
-        <Route path="/bots/:botId/tasks" element={<Tasks />} />
         <Route path="/memory" element={<MemoryEditor />} />
-        <Route path="/bots/:botId/memory" element={<MemoryEditor />} />
-        <Route path="/bots/:botId/groups/:groupJid/memory" element={<MemoryEditor />} />
         <Route path="/settings" element={<Settings />} />
         {user.isAdmin && (
           <>
