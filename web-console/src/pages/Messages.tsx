@@ -12,7 +12,7 @@ export default function Messages() {
   useEffect(() => {
     if (botId && groupJid) {
       groupsApi
-        .messages(botId, decodeURIComponent(groupJid))
+        .messages(botId, groupJid)
         .then(setMessages)
         .catch((err) => console.error('Failed to load messages:', err))
         .finally(() => setLoading(false));

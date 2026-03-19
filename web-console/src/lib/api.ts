@@ -135,7 +135,7 @@ export const channels = {
 // Group API
 export const groups = {
   list: (botId: string) => request<Group[]>(`/bots/${botId}/groups`),
-  messages: (botId: string, groupJid: string, limit?: number) => request<Message[]>(`/bots/${botId}/groups/${groupJid}/messages${limit ? `?limit=${limit}` : ''}`),
+  messages: (botId: string, groupJid: string, limit?: number) => request<Message[]>(`/bots/${botId}/groups/${encodeURIComponent(groupJid)}/messages${limit ? `?limit=${limit}` : ''}`),
 };
 
 // Task API
