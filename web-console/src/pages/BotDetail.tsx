@@ -8,6 +8,7 @@ import {
 import { clsx } from 'clsx';
 import TabNav from '../components/TabNav';
 import Badge from '../components/Badge';
+import FileBrowser from '../components/FileBrowser';
 import {
   bots as botsApi, channels as channelsApi, groups as groupsApi,
   tasks as tasksApi, memory as memoryApi,
@@ -880,7 +881,13 @@ export default function BotDetail() {
           <MemoryTab botId={botId!} />
         )}
         {activeTab === 'files' && (
-          <div className="text-slate-500 text-sm">Files tab — coming soon</div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-900">Files</h2>
+              <p className="text-sm text-slate-500">Browse agent workspace on S3</p>
+            </div>
+            <FileBrowser botId={botId!} />
+          </div>
         )}
         {activeTab === 'settings' && (
           <SettingsTab bot={bot} botId={botId!} loadData={loadData} />
