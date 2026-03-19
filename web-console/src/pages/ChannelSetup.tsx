@@ -422,10 +422,39 @@ function FeishuGuide({ botId, step }: { botId: string; step: 'before' | 'after' 
               <p className="text-blue-700 mt-0.5">
                 在「<strong>权限管理</strong>」中申请以下权限：
               </p>
-              <ul className="mt-1 ml-4 list-disc text-blue-700 space-y-0.5">
-                <li><code className="bg-blue-100 px-1 rounded">im:message</code> — 读取消息</li>
+              <p className="mt-1 text-blue-600 text-xs">推荐使用「批量开通」导入权限，或手动逐个申请：</p>
+              <p className="mt-2 mb-0.5 font-medium text-blue-800 text-xs">消息（必需）</p>
+              <ul className="ml-4 list-disc text-blue-700 space-y-0.5">
+                <li><code className="bg-blue-100 px-1 rounded">im:message</code> — 获取与发送消息</li>
                 <li><code className="bg-blue-100 px-1 rounded">im:message:send_as_bot</code> — 以机器人身份发送消息</li>
+                <li><code className="bg-blue-100 px-1 rounded">im:message:readonly</code> — 读取消息内容</li>
+                <li><code className="bg-blue-100 px-1 rounded">im:message.p2p_msg:readonly</code> — 读取私聊消息</li>
+                <li><code className="bg-blue-100 px-1 rounded">im:message.group_at_msg:readonly</code> — 读取群聊 @机器人 消息</li>
                 <li><code className="bg-blue-100 px-1 rounded">im:resource</code> — 读取消息中的资源文件</li>
+                <li><code className="bg-blue-100 px-1 rounded">im:chat.members:bot_access</code> — 获取群成员信息</li>
+                <li><code className="bg-blue-100 px-1 rounded">im:chat.access_event.bot_p2p_chat:read</code> — 接收私聊事件</li>
+              </ul>
+              <p className="mt-2 mb-0.5 font-medium text-blue-800 text-xs">卡片与用户</p>
+              <ul className="ml-4 list-disc text-blue-700 space-y-0.5">
+                <li><code className="bg-blue-100 px-1 rounded">cardkit:card:read</code> — 读取卡片消息</li>
+                <li><code className="bg-blue-100 px-1 rounded">cardkit:card:write</code> — 发送卡片消息</li>
+                <li><code className="bg-blue-100 px-1 rounded">contact:user.employee_id:readonly</code> — 读取用户信息</li>
+                <li><code className="bg-blue-100 px-1 rounded">application:bot.menu:write</code> — 管理机器人菜单</li>
+              </ul>
+              <p className="mt-2 mb-0.5 font-medium text-blue-800 text-xs">文档与知识库（启用飞书文档工具时需要）</p>
+              <ul className="ml-4 list-disc text-blue-700 space-y-0.5">
+                <li><code className="bg-blue-100 px-1 rounded">docs:doc</code> — 读写文档</li>
+                <li><code className="bg-blue-100 px-1 rounded">docs:doc:readonly</code> — 只读文档</li>
+                <li><code className="bg-blue-100 px-1 rounded">docx:document</code> — 新版文档读写</li>
+                <li><code className="bg-blue-100 px-1 rounded">docx:document:readonly</code> — 新版文档只读</li>
+                <li><code className="bg-blue-100 px-1 rounded">wiki:wiki</code> — 读写知识库</li>
+                <li><code className="bg-blue-100 px-1 rounded">wiki:wiki:readonly</code> — 只读知识库</li>
+              </ul>
+              <p className="mt-2 mb-0.5 font-medium text-blue-800 text-xs">云盘与权限管理（启用相应工具时需要）</p>
+              <ul className="ml-4 list-disc text-blue-700 space-y-0.5">
+                <li><code className="bg-blue-100 px-1 rounded">drive:drive</code> — 读写云盘文件</li>
+                <li><code className="bg-blue-100 px-1 rounded">drive:drive:readonly</code> — 只读云盘文件</li>
+                <li><code className="bg-blue-100 px-1 rounded">drive:file:permission:member</code> — 管理文档权限</li>
               </ul>
             </div>
           </div>
