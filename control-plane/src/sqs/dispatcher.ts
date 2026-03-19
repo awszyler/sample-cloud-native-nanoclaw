@@ -18,9 +18,11 @@ import type {
   SqsTaskPayload,
   Message,
 } from '@clawbot/shared';
+import type { ModelProvider } from '@clawbot/shared';
 import { config } from '../config.js';
 import {
   getGroup,
+  getUser,
   ensureUser,
   putMessage,
   putSession,
@@ -30,6 +32,7 @@ import {
   releaseAgentSlot,
   getChannelsByBot,
 } from '../services/dynamo.js';
+import { getAnthropicApiKey } from '../services/secrets.js';
 import { getCachedBot } from '../services/cached-lookups.js';
 import { getRegistry } from '../adapters/registry.js';
 import type { ReplyContext, ReplyOptions } from '@clawbot/shared/channel-adapter';
@@ -77,6 +80,33 @@ async function buildFeishuConfig(
   } catch (err) {
     logger.warn({ err, botId }, 'Failed to build feishu config for invocation');
     return undefined;
+  }
+}
+
+async function resolveProviderCredentials(
+  bot: { modelProvider?: ModelProvider; botId: string },
+  userId: string,
+  logger: Logger,
+): Promise<{ modelProvider?: ModelProvider; anthropicApiKey?: string; anthropicBaseUrl?: string }> {
+  if (bot.modelProvider !== 'anthropic-api') return {};
+
+  try {
+    const [apiKey, userData] = await Promise.all([
+      getAnthropicApiKey(userId),
+      getUser(userId),
+    ]);
+    if (!apiKey) {
+      logger.warn({ userId, botId: bot.botId }, 'Bot set to anthropic-api but no API key found, falling back to bedrock');
+      return {};
+    }
+    return {
+      modelProvider: 'anthropic-api',
+      anthropicApiKey: apiKey,
+      anthropicBaseUrl: (userData as unknown as Record<string, unknown>)?.anthropicBaseUrl as string || undefined,
+    };
+  } catch (err) {
+    logger.error({ err, userId }, 'Failed to resolve provider credentials, falling back to bedrock');
+    return {};
   }
 }
 
@@ -149,6 +179,9 @@ async function dispatchMessage(
     // 6. Build feishu config (if channel is feishu, includes credential ARN + tool config)
     const feishuConfig = await buildFeishuConfig(payload.botId, payload.channelType, logger);
 
+    // Resolve provider credentials (Anthropic API key + base URL) if bot uses anthropic-api
+    const providerCreds = await resolveProviderCredentials(bot, payload.userId, logger);
+
     // 7. Build invocation payload
     const invocationPayload: InvocationPayload = {
       botId: payload.botId,
@@ -170,6 +203,7 @@ async function dispatchMessage(
         attachments: payload.attachments,
       }),
       ...(feishuConfig && { feishu: feishuConfig }),
+      ...providerCreds,
     };
 
     logger.info(
@@ -287,6 +321,8 @@ async function dispatchTask(
   // Build feishu config for scheduled tasks too
   const feishuConfig = await buildFeishuConfig(payload.botId, channelType, logger);
 
+  const providerCreds = await resolveProviderCredentials(bot, payload.userId, logger);
+
   const invocationPayload: InvocationPayload = {
     botId: payload.botId,
     botName: bot.name,
@@ -305,6 +341,7 @@ async function dispatchTask(
     },
     isGroupChat: group?.isGroup,
     ...(feishuConfig && { feishu: feishuConfig }),
+    ...providerCreds,
   };
 
   const result = await invokeAgent(invocationPayload, logger);
