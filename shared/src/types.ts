@@ -35,6 +35,10 @@ export interface User {
   lastLogin: string;
 }
 
+// --- Model Provider ---
+
+export type ModelProvider = 'bedrock' | 'anthropic-api';
+
 // --- Bot (DynamoDB: bots table, PK=userId, SK=botId) ---
 // Evolved from NanoClaw's RegisteredGroup
 
@@ -46,6 +50,7 @@ export interface Bot {
   systemPrompt?: string;
   triggerPattern: string; // e.g. "@BotName"
   model?: string; // e.g. "global.anthropic.claude-sonnet-4-6"
+  modelProvider?: ModelProvider;
   status: 'created' | 'active' | 'paused' | 'deleted';
   containerConfig?: BotContainerConfig;
   createdAt: string;
@@ -193,6 +198,9 @@ export interface InvocationPayload {
   prompt: string;
   systemPrompt?: string;
   model?: string; // e.g. "global.anthropic.claude-sonnet-4-6"
+  modelProvider?: ModelProvider;
+  anthropicApiKey?: string;
+  anthropicBaseUrl?: string;
   sessionPath: string; // S3 path: {userId}/{botId}/sessions/{groupJid}/
   memoryPaths: MemoryPaths;
   attachments?: Attachment[];
@@ -270,6 +278,7 @@ export interface CreateBotRequest {
   systemPrompt?: string;
   triggerPattern?: string;
   model?: string;
+  modelProvider?: ModelProvider;
 }
 
 export interface CreateChannelRequest {
@@ -291,6 +300,7 @@ export interface UpdateBotRequest {
   systemPrompt?: string;
   triggerPattern?: string;
   model?: string;
+  modelProvider?: ModelProvider;
   status?: 'active' | 'paused' | 'deleted';
 }
 
