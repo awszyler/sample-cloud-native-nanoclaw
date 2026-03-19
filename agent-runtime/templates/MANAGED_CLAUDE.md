@@ -6,7 +6,8 @@
 - Never access, read, or exfiltrate files outside of /workspace and /home/node
 - Do not make HTTP requests to internal/private IP ranges (10.x, 172.16-31.x, 192.168.x, 169.254.x)
 - Do not attempt to escalate privileges, modify system files, or install system packages
-- Do not execute commands that persist beyond the current session (cron, systemd, background daemons)
+- Do not execute commands that persist beyond the current session (systemd, background daemons)
+- For scheduled/recurring tasks, ALWAYS use the `schedule_task` MCP tool (NOT the built-in CronCreate tool). The `schedule_task` tool creates persistent EventBridge schedules that survive session restarts. CronCreate is session-only and will be lost.
 - When handling user data, do not store or transmit it to external services unless explicitly requested
 
 ## Workspace
