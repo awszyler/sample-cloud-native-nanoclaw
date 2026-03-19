@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
+import { Brain, Save } from 'lucide-react';
 import { memory } from '../lib/api';
 
 type Level = 'shared' | 'bot-global' | 'group';
@@ -8,17 +9,17 @@ const LEVEL_META: Record<Level, { label: string; description: string; placeholde
   shared: {
     label: 'Shared Memory',
     description: 'Memory shared across all bots (CLAUDE.md)',
-    placeholder: 'Enter shared memory content...',
+    placeholder: '# Shared Memory\n\nEnter instructions and context shared across all your bots...',
   },
   'bot-global': {
     label: 'Bot Memory',
     description: 'Bot operating manual — identity, personality, rules, and notes (CLAUDE.md)',
-    placeholder: 'Enter bot memory content...',
+    placeholder: '# Bot Memory\n\nEnter bot-specific instructions...',
   },
   group: {
     label: 'Group Memory',
     description: 'Conversation-specific memory (CLAUDE.md)',
-    placeholder: 'Enter group memory content...',
+    placeholder: '# Group Memory\n\nEnter conversation-specific context...',
   },
 };
 
@@ -33,13 +34,8 @@ export default function MemoryEditor() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
-  // Remember botId/groupJid so tab buttons stay visible when switching
-  const lastBotId = useRef(botId);
-  const lastGroupJid = useRef(groupJid);
-  if (botId) lastBotId.current = botId;
-  if (groupJid) lastGroupJid.current = groupJid;
-
-  // Determine level from URL
+  // Determine level from URL — standalone page is always shared;
+  // bot/group memory is handled inside BotDetail tabs now.
   const level: Level = tabParam
     ? tabParam
     : botId && groupJid
@@ -102,70 +98,62 @@ export default function MemoryEditor() {
     }
   }
 
-  // Build tab list based on context
-  const tabs: { level: Level; to: string }[] = [];
-  tabs.push({ level: 'shared', to: '/memory' });
-  if (lastBotId.current) {
-    tabs.push({ level: 'bot-global', to: `/bots/${lastBotId.current}/memory` });
-  }
-  if (lastBotId.current && lastGroupJid.current) {
-    tabs.push({ level: 'group', to: `/bots/${lastBotId.current}/groups/${lastGroupJid.current}/memory` });
-  }
-
   return (
-    <div className="space-y-6">
+    <div className="animate-fade-in space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{meta.label}</h1>
-          <p className="mt-1 text-sm text-gray-500">{meta.description}</p>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-50">
+            <Brain className="h-5 w-5 text-accent-600" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-900">{meta.label}</h1>
+            <p className="text-sm text-slate-500">{meta.description}</p>
+          </div>
         </div>
-        <div className="flex gap-3 items-center">
-          {level === 'shared' && (
-            <Link to="/" className="text-sm text-gray-500 hover:text-gray-700">Back to Dashboard</Link>
-          )}
-          {level !== 'shared' && (
-            <Link to={`/bots/${botId || lastBotId.current}`} className="text-sm text-gray-500 hover:text-gray-700">Back to Bot</Link>
-          )}
-        </div>
-      </div>
-
-      <div className="flex gap-2 text-sm flex-wrap">
-        {tabs.map((tab) => (
-          <Link key={tab.level} to={tab.to}
-            className={`px-3 py-1 rounded-full ${
-              level === tab.level
-                ? 'bg-indigo-100 text-indigo-700'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}>
-            {LEVEL_META[tab.level].label}
+        {level !== 'shared' && botId && (
+          <Link
+            to={`/bots/${botId}`}
+            className="text-sm text-slate-500 hover:text-slate-700 transition-colors"
+          >
+            Back to Bot
           </Link>
-        ))}
+        )}
       </div>
 
+      {/* Error */}
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700">{error}</div>
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
       )}
 
+      {/* Editor */}
       {loading ? (
-        <div className="text-center py-12 text-gray-500">Loading...</div>
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-6 w-6 border-2 border-accent-500 border-t-transparent" />
+        </div>
       ) : (
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
           <textarea
             value={content}
             onChange={e => setContent(e.target.value)}
-            rows={20}
-            className="w-full font-mono text-sm p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-y"
+            rows={22}
+            className="w-full font-mono text-sm leading-relaxed p-4 rounded-lg border border-slate-300 bg-slate-50 focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 focus:bg-white focus:outline-none resize-y transition-colors"
             placeholder={meta.placeholder}
           />
           <div className="mt-4 flex items-center gap-4">
             <button
               onClick={saveMemory}
               disabled={saving}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2 rounded-lg bg-accent-500 text-white px-4 py-2.5 text-sm font-medium hover:bg-accent-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
+              <Save size={16} />
               {saving ? 'Saving...' : `Save ${meta.label}`}
             </button>
-            {saved && <span className="text-sm text-green-600">Saved successfully</span>}
+            {saved && (
+              <span className="text-sm text-emerald-600 font-medium">Saved successfully</span>
+            )}
           </div>
         </div>
       )}
