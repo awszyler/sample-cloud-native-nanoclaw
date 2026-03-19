@@ -187,11 +187,20 @@ async function _handleInvocation(
   const agentPrompt = prompt;
 
   // 6. Build environment for Claude Agent SDK
-  //    CLAUDE_CODE_USE_BEDROCK=1 is set in the container env, but ensure it's passed through
+  //    Set provider-specific env vars based on modelProvider
   const sdkEnv: Record<string, string | undefined> = {
     ...process.env,
-    CLAUDE_CODE_USE_BEDROCK: '1',
+    CLAUDE_CODE_USE_BEDROCK: payload.modelProvider === 'anthropic-api' ? '0' : '1',
   };
+
+  if (payload.modelProvider === 'anthropic-api') {
+    if (payload.anthropicApiKey) {
+      sdkEnv.ANTHROPIC_API_KEY = payload.anthropicApiKey;
+    }
+    if (payload.anthropicBaseUrl) {
+      sdkEnv.ANTHROPIC_BASE_URL = payload.anthropicBaseUrl;
+    }
+  }
 
   // 7. Resolve MCP server path (mcp-server.js in same dist directory)
   const mcpServerPath = path.join(__dirname, 'mcp-server.js');
