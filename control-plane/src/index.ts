@@ -46,13 +46,15 @@ async function main() {
     logger.error(err, 'Failed to start channel adapters');
   });
 
-  // Graceful shutdown
+  // Graceful shutdown — release leader locks, drain in-flight SQS messages
   const shutdown = async () => {
     logger.info('Shutting down...');
-    stopSqsConsumer();
     stopReplyConsumer();
     stopHealthCheckLoop();
+    // Stop adapters first (releases Feishu leader lock, disconnects gateways)
     await registry.stopAll();
+    // Drain SQS consumer: wait for in-flight dispatches, release stuck messages
+    await stopSqsConsumer();
     await app.close();
     process.exit(0);
   };
