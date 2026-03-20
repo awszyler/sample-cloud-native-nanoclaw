@@ -18,12 +18,13 @@ import type {
   ChannelConfig,
   Group,
   Message,
+  PlanQuotas,
   ScheduledTask,
   Session,
   User,
   UserQuota,
 } from '@clawbot/shared';
-import { DEFAULT_QUOTA } from '@clawbot/shared';
+import { DEFAULT_QUOTA, PLAN_QUOTAS } from '@clawbot/shared';
 
 const rawClient = new DynamoDBClient({ region: config.region });
 const client = DynamoDBDocumentClient.from(rawClient, {
@@ -870,6 +871,38 @@ export async function putSession(session: Session): Promise<void> {
     new PutCommand({
       TableName: config.tables.sessions,
       Item: { pk, sk: 'current', ...session },
+    }),
+  );
+}
+
+// ── Plan Quotas (system config) ─────────────────────────────────────────────
+
+/**
+ * Read the system-wide plan quotas from DynamoDB.
+ * Falls back to the built-in PLAN_QUOTAS defaults if no record exists.
+ */
+export async function getPlanQuotas(): Promise<PlanQuotas> {
+  const result = await client.send(
+    new GetCommand({
+      TableName: config.tables.sessions,
+      Key: { pk: '__system__', sk: 'plan-quotas' },
+    }),
+  );
+  return (result.Item?.quotas as PlanQuotas) ?? PLAN_QUOTAS;
+}
+
+/**
+ * Write/overwrite the system-wide plan quotas in DynamoDB.
+ */
+export async function savePlanQuotas(quotas: PlanQuotas): Promise<void> {
+  await client.send(
+    new PutCommand({
+      TableName: config.tables.sessions,
+      Item: {
+        pk: '__system__',
+        sk: 'plan-quotas',
+        quotas,
+      },
     }),
   );
 }
