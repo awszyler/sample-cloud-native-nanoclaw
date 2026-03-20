@@ -117,7 +117,7 @@ export default function Sidebar({
         })}
         {isAdmin && (
           <Link
-            to="/admin/users"
+            to="/admin"
             title={collapsed ? 'Admin' : undefined}
             className={clsx(
               'flex items-center h-9 rounded-md transition-colors',

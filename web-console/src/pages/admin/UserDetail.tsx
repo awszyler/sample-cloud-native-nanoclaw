@@ -85,9 +85,9 @@ export default function UserDetail() {
 
   return (
     <div className="animate-fade-in">
-      <Link to="/admin/users" className="inline-flex items-center gap-1.5 text-sm text-accent-600 hover:text-accent-500 font-medium mb-4">
+      <Link to="/admin" className="inline-flex items-center gap-1.5 text-sm text-accent-600 hover:text-accent-500 font-medium mb-4">
         <ArrowLeft className="h-4 w-4" />
-        Back to Users
+        Back to Admin
       </Link>
       <h1 className="text-2xl font-semibold text-slate-900 mb-6">{user.email || user.userId}</h1>
 
