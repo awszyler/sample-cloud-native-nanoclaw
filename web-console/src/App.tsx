@@ -7,7 +7,7 @@ import ChannelSetup from './pages/ChannelSetup';
 import Messages from './pages/Messages';
 import MemoryEditor from './pages/MemoryEditor';
 import Settings from './pages/Settings';
-import UserList from './pages/admin/UserList';
+import AdminPage from './pages/admin/AdminPage';
 import UserDetail from './pages/admin/UserDetail';
 import Layout from './components/Layout';
 
@@ -37,7 +37,7 @@ export default function App() {
         <Route path="/settings" element={<Settings />} />
         {user.isAdmin && (
           <>
-            <Route path="/admin/users" element={<UserList />} />
+            <Route path="/admin" element={<AdminPage />} />
             <Route path="/admin/users/:userId" element={<UserDetail />} />
           </>
         )}

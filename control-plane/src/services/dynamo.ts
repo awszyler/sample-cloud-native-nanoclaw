@@ -18,13 +18,14 @@ import type {
   ChannelConfig,
   Group,
   Message,
+  PlanQuotas,
   ScheduledTask,
   Session,
   User,
   UserQuota,
   UserStatus,
 } from '@clawbot/shared';
-import { DEFAULT_QUOTA } from '@clawbot/shared';
+import { DEFAULT_QUOTA, PLAN_QUOTAS } from '@clawbot/shared';
 
 const rawClient = new DynamoDBClient({ region: config.region });
 const client = DynamoDBDocumentClient.from(rawClient, {
@@ -60,10 +61,14 @@ export async function putUser(user: User): Promise<void> {
   );
 }
 
-/** Get user, auto-provisioning with default quota if record is missing or incomplete. */
+/** Get user, auto-provisioning with plan-based quota if record is missing or incomplete. */
 export async function ensureUser(userId: string, email?: string): Promise<User> {
   const existing = await getUser(userId);
   if (existing?.quota) return existing;
+
+  // Fetch admin-configured plan quotas; fall back to built-in defaults
+  const planQuotas = await getPlanQuotas();
+  const freeQuota = planQuotas.free ?? DEFAULT_QUOTA;
 
   const now = new Date().toISOString();
   const user: User = {
@@ -72,7 +77,7 @@ export async function ensureUser(userId: string, email?: string): Promise<User> 
     displayName: existing?.displayName || '',
     plan: existing?.plan || 'free',
     status: existing?.status || 'active',
-    quota: existing?.quota || DEFAULT_QUOTA,
+    quota: existing?.quota || freeQuota,
     usageMonth: existing?.usageMonth || now.slice(0, 7),
     usageTokens: existing?.usageTokens || 0,
     usageInvocations: existing?.usageInvocations || 0,
@@ -293,13 +298,15 @@ export async function updateUserPlan(
   plan: 'free' | 'pro' | 'enterprise',
 ): Promise<void> {
   userIdSchema.parse(userId);
+  const planQuotas = await getPlanQuotas();
+  const quota = planQuotas[plan];
   await client.send(
     new UpdateCommand({
       TableName: config.tables.users,
       Key: { userId },
-      UpdateExpression: 'SET #plan = :plan',
-      ExpressionAttributeNames: { '#plan': 'plan' },
-      ExpressionAttributeValues: { ':plan': plan },
+      UpdateExpression: 'SET #plan = :plan, #quota = :quota',
+      ExpressionAttributeNames: { '#plan': 'plan', '#quota': 'quota' },
+      ExpressionAttributeValues: { ':plan': plan, ':quota': quota },
     }),
   );
 }
@@ -329,27 +336,6 @@ export async function updateUserProvider(
   );
 }
 
-/** Plan-specific quota defaults. Free uses DEFAULT_QUOTA; pro/enterprise scale up. */
-export function getPlanQuotas(): Record<'free' | 'pro' | 'enterprise', UserQuota> {
-  return {
-    free: { ...DEFAULT_QUOTA },
-    pro: {
-      maxBots: 25,
-      maxGroupsPerBot: 50,
-      maxTasksPerBot: 100,
-      maxConcurrentAgents: 25,
-      maxMonthlyTokens: 500_000_000,
-    },
-    enterprise: {
-      maxBots: 100,
-      maxGroupsPerBot: 200,
-      maxTasksPerBot: 500,
-      maxConcurrentAgents: 100,
-      maxMonthlyTokens: 2_000_000_000,
-    },
-  };
-}
-
 /** Create a new User record (admin user provisioning). */
 export async function createUserRecord(
   userId: string,
@@ -357,6 +343,7 @@ export async function createUserRecord(
   plan: 'free' | 'pro' | 'enterprise',
 ): Promise<User> {
   userIdSchema.parse(userId);
+  const planQuotas = await getPlanQuotas();
   const now = new Date().toISOString();
   const user: User = {
     userId,
@@ -364,7 +351,7 @@ export async function createUserRecord(
     displayName: email.split('@')[0],
     plan,
     status: 'active',
-    quota: getPlanQuotas()[plan],
+    quota: planQuotas[plan],
     usageMonth: now.slice(0, 7), // YYYY-MM
     usageTokens: 0,
     usageInvocations: 0,
@@ -950,6 +937,38 @@ export async function putSession(session: Session): Promise<void> {
     new PutCommand({
       TableName: config.tables.sessions,
       Item: { pk, sk: 'current', ...session },
+    }),
+  );
+}
+
+// ── Plan Quotas (system config) ─────────────────────────────────────────────
+
+/**
+ * Read the system-wide plan quotas from DynamoDB.
+ * Falls back to the built-in PLAN_QUOTAS defaults if no record exists.
+ */
+export async function getPlanQuotas(): Promise<PlanQuotas> {
+  const result = await client.send(
+    new GetCommand({
+      TableName: config.tables.sessions,
+      Key: { pk: '__system__', sk: 'plan-quotas' },
+    }),
+  );
+  return (result.Item?.quotas as PlanQuotas) ?? PLAN_QUOTAS;
+}
+
+/**
+ * Write/overwrite the system-wide plan quotas in DynamoDB.
+ */
+export async function savePlanQuotas(quotas: PlanQuotas): Promise<void> {
+  await client.send(
+    new PutCommand({
+      TableName: config.tables.sessions,
+      Item: {
+        pk: '__system__',
+        sk: 'plan-quotas',
+        quotas,
+      },
     }),
   );
 }

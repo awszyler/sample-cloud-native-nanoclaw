@@ -19,6 +19,8 @@ import {
   createUserRecord,
   updateUserStatus,
   softDeleteUser,
+  getPlanQuotas,
+  savePlanQuotas,
 } from '../../services/dynamo.js';
 
 const cognitoClient = new CognitoIdentityProviderClient({ region: config.cognito.region });
@@ -46,12 +48,38 @@ const statusSchema = z.object({
   status: z.enum(['active', 'suspended']),
 });
 
+const userQuotaSchema = z.object({
+  maxBots: z.number().int().min(0),
+  maxGroupsPerBot: z.number().int().min(0),
+  maxTasksPerBot: z.number().int().min(0),
+  maxConcurrentAgents: z.number().int().min(0),
+  maxMonthlyTokens: z.number().int().min(0),
+});
+
+const planQuotasSchema = z.object({
+  free: userQuotaSchema,
+  pro: userQuotaSchema,
+  enterprise: userQuotaSchema,
+});
+
 export const adminRoutes: FastifyPluginAsync = async (app) => {
   // Admin-only guard
   app.addHook('onRequest', async (request, reply) => {
     if (!request.isAdmin) {
       return reply.status(403).send({ error: 'Admin access required' });
     }
+  });
+
+  // Get plan quotas (must be before /:userId to avoid param capture)
+  app.get('/plans', async () => {
+    return getPlanQuotas();
+  });
+
+  // Update plan quotas
+  app.put('/plans', async (request) => {
+    const quotas = planQuotasSchema.parse(request.body);
+    await savePlanQuotas(quotas);
+    return { ok: true };
   });
 
   // ── Create user (must be registered BEFORE /:userId routes) ───────────────
