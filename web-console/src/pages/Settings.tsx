@@ -16,12 +16,12 @@ type Tab = 'providers' | 'credentials';
 // ── Model Presets ─────────────────────────────────────────────────────────
 
 const BEDROCK_PRESETS = [
-  'us.anthropic.claude-sonnet-4-6-20250514-v1:0',
-  'us.anthropic.claude-opus-4-6-20250514-v1:0',
+  'global.anthropic.claude-sonnet-4-6',
+  'global.anthropic.claude-opus-4-6-v1',
 ];
 const ANTHROPIC_PRESETS = [
-  'claude-sonnet-4-6-20250514',
-  'claude-opus-4-6-20250514',
+  'claude-sonnet-4-6',
+  'claude-opus-4-6',
 ];
 
 // ── Providers Tab (Admin only) ────────────────────────────────────────────
