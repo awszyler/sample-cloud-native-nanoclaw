@@ -22,6 +22,7 @@ import type {
   Session,
   User,
   UserQuota,
+  UserStatus,
 } from '@clawbot/shared';
 import { DEFAULT_QUOTA } from '@clawbot/shared';
 
@@ -324,6 +325,84 @@ export async function updateUserProvider(
       Key: { userId },
       UpdateExpression: `SET ${expressions.join(', ')}`,
       ExpressionAttributeValues: values,
+    }),
+  );
+}
+
+/** Plan-specific quota defaults. Free uses DEFAULT_QUOTA; pro/enterprise scale up. */
+export function getPlanQuotas(): Record<'free' | 'pro' | 'enterprise', UserQuota> {
+  return {
+    free: { ...DEFAULT_QUOTA },
+    pro: {
+      maxBots: 25,
+      maxGroupsPerBot: 50,
+      maxTasksPerBot: 100,
+      maxConcurrentAgents: 25,
+      maxMonthlyTokens: 500_000_000,
+    },
+    enterprise: {
+      maxBots: 100,
+      maxGroupsPerBot: 200,
+      maxTasksPerBot: 500,
+      maxConcurrentAgents: 100,
+      maxMonthlyTokens: 2_000_000_000,
+    },
+  };
+}
+
+/** Create a new User record (admin user provisioning). */
+export async function createUserRecord(
+  userId: string,
+  email: string,
+  plan: 'free' | 'pro' | 'enterprise',
+): Promise<User> {
+  userIdSchema.parse(userId);
+  const now = new Date().toISOString();
+  const user: User = {
+    userId,
+    email,
+    displayName: email.split('@')[0],
+    plan,
+    status: 'active',
+    quota: getPlanQuotas()[plan],
+    usageMonth: now.slice(0, 7), // YYYY-MM
+    usageTokens: 0,
+    usageInvocations: 0,
+    activeAgents: 0,
+    createdAt: now,
+    lastLogin: now,
+  };
+  await putUser(user);
+  return user;
+}
+
+/** Update user status (active or suspended). */
+export async function updateUserStatus(
+  userId: string,
+  status: 'active' | 'suspended',
+): Promise<void> {
+  userIdSchema.parse(userId);
+  await client.send(
+    new UpdateCommand({
+      TableName: config.tables.users,
+      Key: { userId },
+      UpdateExpression: 'SET #status = :status',
+      ExpressionAttributeNames: { '#status': 'status' },
+      ExpressionAttributeValues: { ':status': status },
+    }),
+  );
+}
+
+/** Soft-delete a user by setting status to 'deleted'. */
+export async function softDeleteUser(userId: string): Promise<void> {
+  userIdSchema.parse(userId);
+  await client.send(
+    new UpdateCommand({
+      TableName: config.tables.users,
+      Key: { userId },
+      UpdateExpression: 'SET #status = :deleted',
+      ExpressionAttributeNames: { '#status': 'status' },
+      ExpressionAttributeValues: { ':deleted': 'deleted' },
     }),
   );
 }
