@@ -62,6 +62,17 @@ export const botsRoutes: FastifyPluginAsync = async (app) => {
       }
     }
 
+    // Validate provider and modelId if specified
+    if (body.providerId) {
+      const provider = await getProvider(body.providerId);
+      if (!provider) {
+        return reply.status(400).send({ error: 'Provider not found' });
+      }
+      if (body.modelId && !provider.modelIds.includes(body.modelId)) {
+        return reply.status(400).send({ error: 'Model ID not available for this provider' });
+      }
+    }
+
     const now = new Date().toISOString();
 
     const bot: Bot = {

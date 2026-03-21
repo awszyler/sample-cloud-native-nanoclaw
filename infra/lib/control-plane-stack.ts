@@ -147,7 +147,7 @@ export class ControlPlaneStack extends cdk.Stack {
     // ── Task Role Permissions ───────────────────────────────────────────
     const taskRole = taskDef.taskRole;
 
-    // DynamoDB CRUD on all 7 tables
+    // DynamoDB CRUD on all tables
     const allTables = Object.values(tables);
     for (const table of allTables) {
       table.grantReadWriteData(taskRole);

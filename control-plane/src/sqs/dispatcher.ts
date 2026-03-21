@@ -22,7 +22,6 @@ import type { ModelProvider, ProviderType, Session } from '@clawbot/shared';
 import { config } from '../config.js';
 import {
   getGroup,
-  getUser,
   ensureUser,
   putMessage,
   putSession,
@@ -137,8 +136,10 @@ async function resolveProviderCredentials(
     }
   }
 
-  // Legacy path: bot still has old modelProvider field
+  // Legacy path: bot still has old modelProvider field (migration-period fallback).
+  // Note: API key will NOT be resolved here — bots should be migrated to use a provider.
   if (bot.modelProvider === 'anthropic-api') {
+    logger.warn({ botId: bot.botId }, 'Bot uses legacy modelProvider=anthropic-api without providerId — API key will not be resolved. Migrate bot to use a provider.');
     return { modelProvider: 'anthropic-api' };
   }
 
@@ -278,13 +279,14 @@ async function dispatchMessage(
 
     // 6c. Check for model/provider change → force new session if needed
     const effectiveProvider = providerCreds.modelProvider ?? bot.modelProvider;
+    const effectiveModel = providerCreds.model || bot.model;
     const existingSession = await getSession(payload.botId, payload.groupJid);
-    const forceNewSession = shouldResetSession(existingSession, bot.model, effectiveProvider);
+    const forceNewSession = shouldResetSession(existingSession, effectiveModel, effectiveProvider);
     if (forceNewSession) {
       logger.info(
         {
           botId: payload.botId, groupJid: payload.groupJid,
-          oldModel: existingSession?.lastModel, newModel: bot.model,
+          oldModel: existingSession?.lastModel, newModel: effectiveModel,
           oldProvider: existingSession?.lastModelProvider, newProvider: effectiveProvider,
         },
         'Model/provider change detected, forcing new session',
@@ -394,7 +396,7 @@ async function dispatchMessage(
         s3SessionPath: invocationPayload.sessionPath,
         lastActiveAt: new Date().toISOString(),
         status: 'active',
-        lastModel: bot.model,
+        lastModel: effectiveModel,
         lastModelProvider: effectiveProvider,
       });
     }
@@ -453,8 +455,9 @@ async function dispatchTask(
 
   // Check for model/provider change
   const effectiveProvider = providerCreds.modelProvider ?? bot.modelProvider;
+  const effectiveModel = providerCreds.model || bot.model;
   const existingSession = await getSession(payload.botId, payload.groupJid);
-  const forceNewSession = shouldResetSession(existingSession, bot.model, effectiveProvider);
+  const forceNewSession = shouldResetSession(existingSession, effectiveModel, effectiveProvider);
   if (forceNewSession) {
     logger.info(
       { botId: payload.botId, groupJid: payload.groupJid },
@@ -530,7 +533,7 @@ async function dispatchTask(
       s3SessionPath: invocationPayload.sessionPath,
       lastActiveAt: new Date().toISOString(),
       status: 'active',
-      lastModel: bot.model,
+      lastModel: effectiveModel,
       lastModelProvider: effectiveProvider,
     });
   }

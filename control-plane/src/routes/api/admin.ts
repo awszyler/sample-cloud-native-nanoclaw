@@ -348,7 +348,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     await updateProviderDb(providerId, {
       ...(body.providerName !== undefined && { providerName: body.providerName }),
       ...(body.providerType !== undefined && { providerType: body.providerType as ProviderType }),
-      ...(body.baseUrl !== undefined && { baseUrl: body.baseUrl ?? undefined }),
+      ...(body.baseUrl !== undefined && { baseUrl: body.baseUrl === null ? '' : body.baseUrl }),
       ...(body.apiKey !== undefined && { hasApiKey: true }),
       ...(body.modelIds !== undefined && { modelIds: body.modelIds }),
       ...(body.isDefault !== undefined && { isDefault: body.isDefault }),

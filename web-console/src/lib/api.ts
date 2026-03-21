@@ -250,7 +250,7 @@ export const admin = {
   updateProvider: (providerId: string, data: UpdateProviderRequest) =>
     request<ProviderFull>(`/admin/providers/${providerId}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteProvider: (providerId: string) =>
-    request<{ ok: boolean }>(`/admin/providers/${providerId}`, { method: 'DELETE' }),
+    request<void>(`/admin/providers/${providerId}`, { method: 'DELETE' }),
 };
 
 // File Browser types
