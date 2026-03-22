@@ -404,16 +404,16 @@ function ProvidersTab() {
   );
 }
 
-const PRESETS: Array<Omit<ProxyRuleInput, 'value'> & { description: string }> = [
-  { name: 'Anthropic', prefix: '/anthropic', target: 'https://api.anthropic.com', authType: 'api-key', headerName: 'x-api-key', description: 'Claude API (direct key)' },
-  { name: 'OpenAI', prefix: '/openai', target: 'https://api.openai.com', authType: 'bearer', description: 'GPT / DALL-E / Whisper' },
-  { name: 'GitHub', prefix: '/github', target: 'https://api.github.com', authType: 'bearer', description: 'Repos, issues, PRs' },
-  { name: 'Jira', prefix: '/jira', target: 'https://your-domain.atlassian.net', authType: 'basic', description: 'Atlassian Jira (user:token)' },
-  { name: 'Google AI', prefix: '/google-ai', target: 'https://generativelanguage.googleapis.com', authType: 'api-key', headerName: 'x-goog-api-key', description: 'Gemini API' },
-];
-
 function CredentialsTab() {
   const { t } = useTranslation();
+
+  const PRESETS: Array<Omit<ProxyRuleInput, 'value'> & { description: string }> = [
+    { name: 'Anthropic', prefix: '/anthropic', target: 'https://api.anthropic.com', authType: 'api-key', headerName: 'x-api-key', description: t('settings.credentials.presetAnthropic') },
+    { name: 'OpenAI', prefix: '/openai', target: 'https://api.openai.com', authType: 'bearer', description: t('settings.credentials.presetOpenai') },
+    { name: 'GitHub', prefix: '/github', target: 'https://api.github.com', authType: 'bearer', description: t('settings.credentials.presetGithub') },
+    { name: 'Jira', prefix: '/jira', target: 'https://your-domain.atlassian.net', authType: 'basic', description: t('settings.credentials.presetJira') },
+    { name: 'Google AI', prefix: '/google-ai', target: 'https://generativelanguage.googleapis.com', authType: 'api-key', headerName: 'x-goog-api-key', description: t('settings.credentials.presetGoogleAi') },
+  ];
   const authTypeLabels: Record<string, string> = {
     'bearer': t('settings.credentials.bearerToken'),
     'api-key': t('settings.credentials.apiKeyHeader'),

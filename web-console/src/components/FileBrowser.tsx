@@ -126,7 +126,7 @@ export default function FileBrowser({ botId }: { botId: string }) {
       setTree((prev) => ({ ...prev, [prefix]: result.entries }));
     } catch (err) {
       console.error('Failed to load folder:', err);
-      if (prefix === '') setError('Failed to load files');
+      if (prefix === '') setError(t('botDetail.files.failedToLoad'));
     } finally {
       if (prefix === '') setLoading(false);
     }

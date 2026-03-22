@@ -422,9 +422,9 @@ function TasksTab({
                 onChange={e => setNewTask(prev => ({ ...prev, scheduleType: e.target.value }))}
                 className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 focus:outline-none"
               >
-                <option value="cron">Cron</option>
-                <option value="interval">Interval (ms)</option>
-                <option value="once">Once (ISO)</option>
+                <option value="cron">{t('botDetail.tasks.cronType')}</option>
+                <option value="interval">{t('botDetail.tasks.intervalType')}</option>
+                <option value="once">{t('botDetail.tasks.onceType')}</option>
               </select>
             </div>
             <div className="flex-1">

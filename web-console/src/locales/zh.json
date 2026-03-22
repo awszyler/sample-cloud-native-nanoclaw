@@ -125,7 +125,10 @@
       "nextRun": "下次运行：{{time}}",
       "pause": "暂停",
       "resume": "恢复",
-      "deleteConfirm": "删除此任务？"
+      "deleteConfirm": "删除此任务？",
+      "cronType": "Cron 表达式",
+      "intervalType": "间隔（毫秒）",
+      "onceType": "一次性（ISO 格式）"
     },
     "memory": {
       "botMemory": "机器人记忆",
@@ -145,7 +148,8 @@
       "loadingFile": "加载文件中...",
       "selectFile": "选择文件以预览",
       "size": "大小：{{size}}",
-      "modified": "修改时间：{{date}}"
+      "modified": "修改时间：{{date}}",
+      "failedToLoad": "加载文件失败"
     },
     "settings": {
       "triggerPattern": "触发模式",
@@ -163,6 +167,16 @@
     "enterCredentials": "输入凭证",
     "connectChannel": "连接渠道",
     "doneBackToBot": "完成 — 返回机器人",
+    "fields": {
+      "botToken": "Bot Token",
+      "publicKey": "Public Key",
+      "signingSecret": "Signing Secret",
+      "appId": "App ID",
+      "appSecret": "App Secret",
+      "encryptKey": "Encrypt Key (加密密钥)",
+      "verificationToken": "Verification Token (验证令牌)",
+      "domain": "域"
+    },
     "telegram": {
       "label": "Telegram",
       "desc": "基于 Webhook 的机器人",
@@ -401,7 +415,12 @@
       "secretPlaceholderNew": "输入密钥值",
       "secretPlaceholderKeep": "输入新值以替换",
       "saveRule": "保存规则",
-      "deleteConfirm": "删除此凭证规则？"
+      "deleteConfirm": "删除此凭证规则？",
+      "presetAnthropic": "Claude API（直接密钥）",
+      "presetOpenai": "GPT / DALL-E / Whisper",
+      "presetGithub": "代码仓库、Issue、PR",
+      "presetJira": "Atlassian Jira（用户:令牌）",
+      "presetGoogleAi": "Gemini API"
     }
   },
   "admin": {
@@ -428,6 +447,9 @@
       "deleteConfirm": "删除此用户？此操作无法撤销。"
     },
     "plans": {
+      "free": "免费版",
+      "pro": "专业版",
+      "enterprise": "企业版",
       "maxBots": "最大机器人数",
       "maxGroupsPerBot": "每个机器人最大群组数",
       "maxTasksPerBot": "每个机器人最大任务数",

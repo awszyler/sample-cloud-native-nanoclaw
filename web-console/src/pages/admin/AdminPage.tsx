@@ -129,9 +129,9 @@ function UsersTab() {
               onChange={(e) => setNewPlan(e.target.value)}
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 focus:outline-none"
             >
-              <option value="free">Free</option>
-              <option value="pro">Pro</option>
-              <option value="enterprise">Enterprise</option>
+              <option value="free">{t('admin.plans.free')}</option>
+              <option value="pro">{t('admin.plans.pro')}</option>
+              <option value="enterprise">{t('admin.plans.enterprise')}</option>
             </select>
           </div>
           <div className="flex gap-2 pt-1">

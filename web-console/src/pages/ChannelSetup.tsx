@@ -17,24 +17,27 @@ interface FieldDef {
   type?: string;
 }
 
-const channelFields: Record<ChannelType, FieldDef[]> = {
-  telegram: [{ name: 'botToken', label: 'Bot Token', placeholder: '123456:ABC-DEF...' }],
-  discord: [
-    { name: 'botToken', label: 'Bot Token', placeholder: 'MTk...' },
-    { name: 'publicKey', label: 'Public Key', placeholder: 'Ed25519 public key' },
-  ],
-  slack: [
-    { name: 'botToken', label: 'Bot Token', placeholder: 'xoxb-...' },
-    { name: 'signingSecret', label: 'Signing Secret', placeholder: '32-character hex string' },
-  ],
-  feishu: [
-    { name: 'appId', label: 'App ID', placeholder: 'cli_xxxxxxxxxxxxxxxx' },
-    { name: 'appSecret', label: 'App Secret', placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', type: 'password' },
-    { name: 'encryptKey', label: 'Encrypt Key', placeholder: 'Encrypt Key from event subscription settings', type: 'password' },
-    { name: 'verificationToken', label: 'Verification Token', placeholder: 'Verification Token from event subscription settings', type: 'password' },
-    { name: 'domain', label: 'Domain', placeholder: 'feishu' },
-  ],
-};
+function useChannelFields(): Record<ChannelType, FieldDef[]> {
+  const { t } = useTranslation();
+  return {
+    telegram: [{ name: 'botToken', label: t('channelSetup.fields.botToken'), placeholder: '123456:ABC-DEF...' }],
+    discord: [
+      { name: 'botToken', label: t('channelSetup.fields.botToken'), placeholder: 'MTk...' },
+      { name: 'publicKey', label: t('channelSetup.fields.publicKey'), placeholder: 'Ed25519 public key' },
+    ],
+    slack: [
+      { name: 'botToken', label: t('channelSetup.fields.botToken'), placeholder: 'xoxb-...' },
+      { name: 'signingSecret', label: t('channelSetup.fields.signingSecret'), placeholder: '32-character hex string' },
+    ],
+    feishu: [
+      { name: 'appId', label: t('channelSetup.fields.appId'), placeholder: 'cli_xxxxxxxxxxxxxxxx' },
+      { name: 'appSecret', label: t('channelSetup.fields.appSecret'), placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', type: 'password' },
+      { name: 'encryptKey', label: t('channelSetup.fields.encryptKey'), placeholder: 'Encrypt Key from event subscription settings', type: 'password' },
+      { name: 'verificationToken', label: t('channelSetup.fields.verificationToken'), placeholder: 'Verification Token from event subscription settings', type: 'password' },
+      { name: 'domain', label: t('channelSetup.fields.domain'), placeholder: 'feishu' },
+    ],
+  };
+}
 
 function useChannelMeta(): Record<ChannelType, { icon: React.ReactNode; label: string; desc: string }> {
   const { t } = useTranslation();
@@ -721,6 +724,7 @@ function FeishuGuide({ step }: { step: 'before' | 'after' }) {
 export default function ChannelSetup() {
   const { t } = useTranslation();
   const channelMeta = useChannelMeta();
+  const channelFields = useChannelFields();
   const { botId } = useParams<{ botId: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
