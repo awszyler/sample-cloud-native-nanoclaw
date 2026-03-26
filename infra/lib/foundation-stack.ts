@@ -140,6 +140,14 @@ export class FoundationStack extends cdk.Stack {
       projectionType: dynamodb.ProjectionType.ALL,
     });
 
+    // PERF-C2: GSI for efficient channel discovery by type (replaces full table scans)
+    this.channelsTable.addGlobalSecondaryIndex({
+      indexName: 'channelType-index',
+      partitionKey: { name: 'channelType', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'botId', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
     // 4. Groups table
     this.groupsTable = new dynamodb.Table(this, 'GroupsTable', {
       ...tableDefaults,

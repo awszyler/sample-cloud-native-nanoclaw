@@ -56,6 +56,7 @@ export interface User {
   usageTokens: number;
   usageInvocations: number;
   activeAgents: number;
+  botCount?: number; // Denormalized — maintained by createBot/deleteBot
   createdAt: string;
   lastLogin: string;
 }

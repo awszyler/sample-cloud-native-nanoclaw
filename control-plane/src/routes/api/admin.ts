@@ -14,7 +14,6 @@ import { config } from '../../config.js';
 import {
   getUser,
   listAllUsers,
-  listBots,
   updateUserQuota,
   updateUserPlan,
   createUserRecord,
@@ -148,40 +147,31 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     return { ok: true, userId, email };
   });
 
-  // List all users
+  // List all users — PERF-C1: uses denormalized botCount instead of N+1 listBots()
   app.get('/', async () => {
     const users = await listAllUsers();
-    const results = await Promise.all(
-      users.map(async (u) => {
-        const bots = await listBots(u.userId);
-        const activeBots = bots.filter((b) => b.status !== 'deleted').length;
-        return {
-          userId: u.userId,
-          email: u.email,
-          displayName: u.displayName,
-          plan: u.plan,
-          status: u.status,
-          quota: u.quota,
-          usageMonth: u.usageMonth,
-          usageTokens: u.usageTokens,
-          usageInvocations: u.usageInvocations,
-          botCount: activeBots,
-          createdAt: u.createdAt,
-          lastLogin: u.lastLogin,
-        };
-      }),
-    );
-    return results;
+    return users.map((u) => ({
+      userId: u.userId,
+      email: u.email,
+      displayName: u.displayName,
+      plan: u.plan,
+      status: u.status,
+      quota: u.quota,
+      usageMonth: u.usageMonth,
+      usageTokens: u.usageTokens,
+      usageInvocations: u.usageInvocations,
+      botCount: u.botCount ?? 0,
+      createdAt: u.createdAt,
+      lastLogin: u.lastLogin,
+    }));
   });
 
-  // Get single user
+  // Get single user — PERF-C1: uses denormalized botCount
   app.get<{ Params: { userId: string } }>('/:userId', async (request, reply) => {
     const user = await getUser(request.params.userId);
     if (!user) {
       return reply.status(404).send({ error: 'User not found' });
     }
-    const bots = await listBots(user.userId);
-    const activeBots = bots.filter((b) => b.status !== 'deleted').length;
     return {
       userId: user.userId,
       email: user.email,
@@ -192,7 +182,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       usageMonth: user.usageMonth,
       usageTokens: user.usageTokens,
       usageInvocations: user.usageInvocations,
-      botCount: activeBots,
+      botCount: user.botCount ?? 0,
       createdAt: user.createdAt,
       lastLogin: user.lastLogin,
     };

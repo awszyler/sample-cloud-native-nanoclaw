@@ -23,7 +23,7 @@ import {
 } from '@aws-sdk/client-secrets-manager';
 import type pino from 'pino';
 import { config } from '../config.js';
-import { getChannelsByBot } from '../services/dynamo.js';
+import { getChannelsByBot, getChannelsByType } from '../services/dynamo.js';
 import { handleDiscordMessage } from './message-handler.js';
 import type { ChannelConfig } from '@clawbot/shared';
 
@@ -370,27 +370,9 @@ function startStandbyPoll(discordChannels: ChannelConfig[]): void {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+// PERF-C2: Use GSI query instead of full table scan + dynamic import
 async function discoverDiscordChannels(): Promise<ChannelConfig[]> {
-  // Scan all bots' channels for discord type.
-  // We query each bot's channels. For efficiency we use the DynamoDB scan
-  // on the channels table filtered by channelType.
-  const { DynamoDBClient: DDBClient } = await import(
-    '@aws-sdk/client-dynamodb'
-  );
-  const { DynamoDBDocumentClient: DDBDocClient, ScanCommand } = await import(
-    '@aws-sdk/lib-dynamodb'
-  );
-  const scanDdb = DDBDocClient.from(new DDBClient({ region: config.region }));
-
-  const result = await scanDdb.send(
-    new ScanCommand({
-      TableName: config.tables.channels,
-      FilterExpression: 'channelType = :ct',
-      ExpressionAttributeValues: { ':ct': 'discord' },
-    }),
-  );
-
-  return (result.Items || []) as ChannelConfig[];
+  return getChannelsByType('discord');
 }
 
 async function loadCredentials(

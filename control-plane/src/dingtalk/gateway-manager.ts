@@ -14,7 +14,6 @@ import {
   PutCommand,
   DeleteCommand,
   GetCommand,
-  ScanCommand,
 } from '@aws-sdk/lib-dynamodb';
 import {
   SecretsManagerClient,
@@ -23,6 +22,7 @@ import {
 import type pino from 'pino';
 import type { ChannelConfig } from '@clawbot/shared';
 import { config } from '../config.js';
+import { getChannelsByType } from '../services/dynamo.js';
 import { handleDingTalkMessage } from './message-handler.js';
 import { parseDingTalkMessage } from './message-handler.js';
 
@@ -432,24 +432,9 @@ export class DingTalkGatewayManager {
     this.logger.info({ botId }, 'DingTalk stream client connected');
   }
 
+  // PERF-C2: Use GSI query instead of full table scan
   private async discoverDingTalkChannels(): Promise<ChannelConfig[]> {
-    const channels: ChannelConfig[] = [];
-    let lastKey: Record<string, unknown> | undefined;
-
-    do {
-      const result = await ddb.send(
-        new ScanCommand({
-          TableName: config.tables.channels,
-          FilterExpression: 'channelType = :ct',
-          ExpressionAttributeValues: { ':ct': 'dingtalk' },
-          ExclusiveStartKey: lastKey,
-        }),
-      );
-      channels.push(...(result.Items || []) as ChannelConfig[]);
-      lastKey = result.LastEvaluatedKey as Record<string, unknown> | undefined;
-    } while (lastKey);
-
-    return channels;
+    return getChannelsByType('dingtalk');
   }
 
   private async loadCredentials(
