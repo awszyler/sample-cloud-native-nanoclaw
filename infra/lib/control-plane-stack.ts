@@ -1,3 +1,4 @@
+import * as crypto from 'node:crypto';
 import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
@@ -42,6 +43,8 @@ export class ControlPlaneStack extends cdk.Stack {
   public readonly alb: elbv2.ApplicationLoadBalancer;
   public readonly service: ecs.FargateService;
   public readonly cluster: ecs.Cluster;
+  /** Shared secret for X-Origin-Verify header between CloudFront and ALB */
+  public readonly originVerifySecret: string;
 
   constructor(scope: Construct, id: string, props: ControlPlaneStackProps) {
     super(scope, id, props);
@@ -59,14 +62,22 @@ export class ControlPlaneStack extends cdk.Stack {
       userPoolClient,
     } = props;
 
+    // Generate a stable origin verification secret (deterministic per account/region/stage)
+    this.originVerifySecret = crypto
+      .createHash('sha256')
+      .update(`${this.account}-${this.region}-${stage}-origin-verify`)
+      .digest('hex')
+      .slice(0, 32);
+
     // ── Security Groups ─────────────────────────────────────────────────
     const albSg = new ec2.SecurityGroup(this, 'AlbSg', {
       vpc,
       description: 'ALB security group',
       allowAllOutbound: true,
     });
-    albSg.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(80), 'HTTP from anywhere');
-    albSg.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(443), 'HTTPS from anywhere');
+    // SEC-C05: ALB accepts HTTP from any IP, but the app-layer X-Origin-Verify
+    // header check ensures only CloudFront traffic is processed.
+    albSg.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(80), 'HTTP from anywhere (origin-verified at app layer)');
 
     const fargateSg = new ec2.SecurityGroup(this, 'FargateSg', {
       vpc,
@@ -137,6 +148,7 @@ export class ControlPlaneStack extends cdk.Stack {
         MESSAGE_QUEUE_ARN: props.messageQueueArn,
         WEBHOOK_BASE_URL_SSM: `/nanoclawbot/${stage}/webhook-base-url`,
         AGENTCORE_RUNTIME_ARN_SSM: `/nanoclawbot/${stage}/agentcore-runtime-arn`,
+        ORIGIN_VERIFY_SECRET: this.originVerifySecret,
       },
       logging: ecs.LogDrivers.awsLogs({
         logGroup,

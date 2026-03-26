@@ -26,6 +26,18 @@ async function main() {
   const app = Fastify({ loggerInstance: logger });
 
   await app.register(cors, { origin: config.corsOrigin });
+
+  // SEC-C05: Reject requests not coming through CloudFront (X-Origin-Verify header check).
+  // The /health endpoint is exempt because ALB health checks go directly to the container.
+  if (config.originVerifySecret) {
+    app.addHook('onRequest', async (request, reply) => {
+      if (request.url === '/health') return; // ALB health check — no CloudFront
+      if (request.headers['x-origin-verify'] !== config.originVerifySecret) {
+        return reply.status(403).send({ error: 'Forbidden' });
+      }
+    });
+  }
+
   await app.register(healthRoutes);
   await app.register(webhookRoutes, { prefix: '/webhook' });
   await app.register(apiRoutes, { prefix: '/api' });
