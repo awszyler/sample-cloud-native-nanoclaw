@@ -53,9 +53,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcups2 \
     libdrm2 \
     libxshmfence1 \
-    git curl ca-certificates unzip \
+    git curl ca-certificates unzip pandoc \
     python3 python3-pip python3-venv \
     && rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install --break-system-packages defusedxml
 
 # Set Chromium path for agent-browser / Puppeteer
 ENV AGENT_BROWSER_EXECUTABLE_PATH=/usr/bin/chromium
@@ -63,7 +65,8 @@ ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
-# Install claude-code and agent-browser globally, then install browser
+# Install claude-code and agent-browser globally (CLI tools only).
+# Note: docx is a library, not a CLI — installed via package.json dependencies.
 RUN npm install -g @anthropic-ai/claude-code agent-browser \
     && agent-browser install || true
 
