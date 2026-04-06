@@ -24,7 +24,8 @@
     "userNotFound": "User not found",
     "copy": "Copy",
     "uploading": "Uploading...",
-    "installing": "Installing..."
+    "installing": "Installing...",
+    "add": "Add"
   },
   "sidebar": {
     "dashboard": "Dashboard",
@@ -81,6 +82,7 @@
       "files": "Files",
       "tools": "Tools",
       "skills": "Skills",
+      "mcp": "MCP",
       "settings": "Settings"
     },
     "overview": {
@@ -184,6 +186,26 @@
       "saving": "Saving...",
       "saved": "Skills updated",
       "error": "Failed to update skills"
+    },
+    "mcp": {
+      "title": "MCP Servers",
+      "description": "Manage Model Context Protocol servers for this bot. Enable platform servers or add custom ones.",
+      "platformServers": "Platform MCP Servers",
+      "noPlatformServers": "No platform MCP servers available. Ask your administrator to add some.",
+      "customServers": "Custom MCP Servers",
+      "addCustom": "Add Custom MCP Server",
+      "noCustomServers": "No custom MCP servers. Add one using the button above.",
+      "secrets": "Secrets",
+      "secretsDesc": "Required credentials for this MCP server",
+      "secretPlaceholder": "Enter value...",
+      "save": "Save",
+      "saving": "Saving...",
+      "saved": "Saved!",
+      "error": "Failed to save",
+      "deleteConfirm": "Delete custom MCP server \"{{name}}\"?",
+      "customPatterns": "Custom tool patterns",
+      "customPatternPlaceholder": "e.g. search or mcp__duckduckgo*",
+      "customPatternHint": "Full tool name for exact match, or prefix with * for wildcard (e.g. mcp__myserver__* to allow all tools from myserver)"
     },
     "settings": {
       "triggerPattern": "Trigger Pattern",
@@ -488,7 +510,8 @@
     "tabs": {
       "users": "Users",
       "plans": "Plans",
-      "skills": "Skills"
+      "skills": "Skills",
+      "mcpServers": "MCP Servers"
     },
     "users": {
       "addUser": "Add User",
@@ -540,6 +563,39 @@
       "subPath": "Subdirectory (optional)",
       "subPathPlaceholder": "e.g. skills/my-skill",
       "deleteConfirm": "Delete skill \"{{name}}\"? This cannot be undone."
+    },
+    "mcpServers": {
+      "addServer": "Add MCP Server",
+      "name": "Name",
+      "description": "Description",
+      "version": "Version",
+      "type": "Type",
+      "tools": "Tools",
+      "status": "Status",
+      "created": "Created",
+      "noServers": "No MCP servers yet. Add your first MCP server using the button above.",
+      "deleteConfirm": "Delete MCP server \"{{name}}\"? This will also remove it from all bots.",
+      "command": "Command",
+      "args": "Arguments",
+      "npmPackages": "NPM Packages",
+      "url": "URL",
+      "headers": "Headers",
+      "envVars": "Environment Variables",
+      "envVarName": "Variable Name",
+      "envVarDesc": "Description",
+      "envVarRequired": "Required",
+      "envVarTemplate": "Template / Default",
+      "toolName": "Tool Name",
+      "toolDesc": "Description",
+      "addEnvVar": "Add Variable",
+      "addTool": "Add Tool",
+      "addHeader": "Add Header",
+      "addArg": "Add Argument",
+      "addPackage": "Add Package",
+      "headerKey": "Key",
+      "headerValue": "Value",
+      "commandPlaceholder": "e.g. npx",
+      "urlPlaceholder": "https://mcp.example.com/sse"
     },
     "userDetail": {
       "userInfo": "User Info",

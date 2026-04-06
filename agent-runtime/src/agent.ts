@@ -18,6 +18,7 @@
  *   - Session resumption via sessionId
  */
 
+import { execSync } from 'node:child_process';
 import fs, { rmSync, mkdirSync, readdirSync } from 'fs';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
@@ -30,7 +31,7 @@ import {
   GetSecretValueCommand,
 } from '@aws-sdk/client-secrets-manager';
 import type pino from 'pino';
-import type { InvocationPayload, InvocationResult, Attachment } from '@clawbot/shared';
+import type { InvocationPayload, InvocationResult, Attachment, ResolvedMcpConfig } from '@clawbot/shared';
 import { syncFromS3, syncToS3, clearSessionDirectory, syncMemoryOnlyFromS3, downloadSkills, type SyncPaths } from './session.js';
 import { buildAppendContent } from './system-prompt.js';
 import { getScopedClients } from './scoped-credentials.js';
@@ -41,6 +42,81 @@ import { createToolWhitelistHook } from './tool-whitelist.js';
 const SESSION_BUCKET = process.env.SESSION_BUCKET || '';
 const DEFAULT_MODEL = 'global.anthropic.claude-sonnet-4-6';
 const secretsManager = new SecretsManagerClient({});
+const MCP_PACKAGES_DIR = '/home/node/.mcp-packages';
+
+// ---------------------------------------------------------------------------
+// Dynamic MCP server helpers
+// ---------------------------------------------------------------------------
+
+async function installMcpPackages(
+  configs: ResolvedMcpConfig[],
+  logger: pino.Logger,
+): Promise<void> {
+  const packagesToInstall: string[] = [];
+
+  for (const cfg of configs) {
+    if (cfg.type === 'stdio' && cfg.npmPackages?.length) {
+      for (const pkg of cfg.npmPackages) {
+        // Strip version suffix (e.g., "@1.2.3", "^2.0") for directory check
+        const basePkg = pkg.replace(/@[\d^~>=<].*$/, '');
+        const pkgName = basePkg.startsWith('@') ? basePkg : basePkg.split('/').pop()!;
+        const checkPath = path.join(MCP_PACKAGES_DIR, 'node_modules', pkgName);
+        if (!fs.existsSync(checkPath)) {
+          packagesToInstall.push(pkg);
+        }
+      }
+    }
+  }
+
+  if (packagesToInstall.length === 0) return;
+
+  fs.mkdirSync(MCP_PACKAGES_DIR, { recursive: true });
+  logger.info({ packages: packagesToInstall }, 'Installing MCP npm packages');
+
+  try {
+    execSync(
+      `npm install --prefix ${MCP_PACKAGES_DIR} ${packagesToInstall.join(' ')}`,
+      { timeout: 120_000, stdio: 'pipe' },
+    );
+    logger.info('MCP npm packages installed successfully');
+  } catch (err) {
+    logger.error({ err }, 'Failed to install MCP npm packages');
+    // Remove configs whose packages failed to install
+    const failedPkgs = new Set(packagesToInstall);
+    const before = configs.length;
+    configs.splice(0, configs.length, ...configs.filter((cfg) => {
+      if (cfg.type !== 'stdio' || !cfg.npmPackages?.length) return true;
+      return !cfg.npmPackages.some((p) => failedPkgs.has(p));
+    }));
+    logger.warn({ removedCount: before - configs.length, remaining: configs.length }, 'Filtered out MCP configs with failed packages');
+  }
+}
+
+function buildDynamicMcpServers(
+  configs?: ResolvedMcpConfig[],
+): Record<string, { command?: string; args?: string[]; env?: Record<string, string>; url?: string; headers?: Record<string, string> }> {
+  if (!configs?.length) return {};
+
+  return Object.fromEntries(
+    configs.map((cfg) => [
+      cfg.name,
+      cfg.type === 'stdio'
+        ? {
+            command: cfg.command || 'node',
+            args: cfg.args || [],
+            env: {
+              ...cfg.envVars,
+              PATH: `${MCP_PACKAGES_DIR}/node_modules/.bin:${process.env.PATH}`,
+            },
+          }
+        : {
+            type: cfg.type as 'sse' | 'http',
+            url: cfg.url!,
+            ...(cfg.headers && { headers: cfg.headers }),
+          },
+    ]),
+  );
+}
 
 // Session switch detection — track which bot+group we last served
 let currentSessionKey: string | undefined;
@@ -188,6 +264,11 @@ async function _handleInvocation(
   if (payload.skills?.length) {
     logger.info({ skillCount: payload.skills.length }, 'Downloading enabled skills');
     await downloadSkills(s3, SESSION_BUCKET, payload.skills, logger);
+  }
+
+  // 2d. Install MCP server npm packages
+  if (payload.mcpConfigs?.length) {
+    await installMcpPackages(payload.mcpConfigs, logger);
   }
 
   // 3. Copy bot operating manual to ~/.claude/CLAUDE.md if not present (first run)
@@ -345,6 +426,20 @@ async function runAgentQuery(params: QueryParams): Promise<InvocationResult> {
     logger.info({ extraDirs }, 'Additional directories discovered');
   }
 
+  // Diagnostic: log model/provider/env and MCP configs
+  logger.info({
+    model: payload.model || DEFAULT_MODEL,
+    provider: payload.modelProvider,
+    providerType: payload.providerType,
+    bedrockMode: sdkEnv.CLAUDE_CODE_USE_BEDROCK,
+    baseUrl: sdkEnv.ANTHROPIC_BASE_URL,
+    hasApiKey: !!sdkEnv.ANTHROPIC_API_KEY,
+    mcpConfigCount: payload.mcpConfigs?.length ?? 0,
+    mcpConfigs: payload.mcpConfigs?.map(c => ({ name: c.name, type: c.type })),
+    whitelistEnabled: payload.toolWhitelist?.mcpToolsEnabled,
+    allowedMcpTools: payload.toolWhitelist?.allowedMcpTools,
+  }, 'Query config');
+
   try {
     for await (const message of query({
       prompt,
@@ -379,6 +474,8 @@ async function runAgentQuery(params: QueryParams): Promise<InvocationResult> {
           'Skill',
           'NotebookEdit',
           'mcp__nanoclawbot__*',
+          // Dynamic MCP server tool wildcards
+          ...(payload.mcpConfigs?.map((cfg) => `mcp__${cfg.name}__*`) ?? []),
         ],
         disallowedTools: [
           'CronCreate',
@@ -412,6 +509,8 @@ async function runAgentQuery(params: QueryParams): Promise<InvocationResult> {
               ...(params.feishuEnv ?? {}),
             },
           },
+          // Dynamic MCP servers from invocation payload
+          ...buildDynamicMcpServers(payload.mcpConfigs),
         },
         hooks: {
           ...((payload.toolWhitelist?.mcpToolsEnabled || payload.toolWhitelist?.skillsEnabled) && {
@@ -503,7 +602,9 @@ async function runAgentQuery(params: QueryParams): Promise<InvocationResult> {
     }
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    logger.error({ error: errorMessage, messageCount }, 'Agent query failed');
+    const errorStack = err instanceof Error ? err.stack : undefined;
+    const errorDetails = err && typeof err === 'object' ? Object.getOwnPropertyNames(err).reduce((acc, k) => { acc[k] = (err as Record<string, unknown>)[k]; return acc; }, {} as Record<string, unknown>) : {};
+    logger.error({ error: errorMessage, errorStack, errorDetails, messageCount }, 'Agent query failed');
     return {
       status: 'error',
       result: lastResult,

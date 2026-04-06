@@ -183,6 +183,18 @@ export const bots = {
   listSkills: (botId: string) => request<{ skills: BotSkillEntry[] }>(`/bots/${botId}/skills`),
   updateSkills: (botId: string, skills: string[]) =>
     request<{ ok: boolean }>(`/bots/${botId}/skills`, { method: 'PUT', body: JSON.stringify({ skills }) }),
+  listMcpServers: (botId: string) =>
+    request<{ mcpServers: BotMcpServerEntry[] }>(`/bots/${botId}/mcp-servers`),
+  updateMcpServers: (botId: string, mcpServers: string[]) =>
+    request<{ ok: boolean }>(`/bots/${botId}/mcp-servers`, { method: 'PUT', body: JSON.stringify({ mcpServers }) }),
+  addCustomMcpServer: (botId: string, data: Record<string, unknown>) =>
+    request<BotMcpServerEntry>(`/bots/${botId}/mcp-servers/custom`, { method: 'POST', body: JSON.stringify(data) }),
+  updateCustomMcpServer: (botId: string, mcpServerId: string, data: Record<string, unknown>) =>
+    request<BotMcpServerEntry>(`/bots/${botId}/mcp-servers/custom/${mcpServerId}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteCustomMcpServer: (botId: string, mcpServerId: string) =>
+    request<void>(`/bots/${botId}/mcp-servers/custom/${mcpServerId}`, { method: 'DELETE' }),
+  saveMcpSecrets: (botId: string, mcpServerId: string, secrets: Record<string, string>) =>
+    request<{ ok: boolean }>(`/bots/${botId}/mcp-servers/${mcpServerId}/secrets`, { method: 'PUT', body: JSON.stringify({ secrets }) }),
 };
 
 // Channel API
@@ -292,7 +304,46 @@ export const admin = {
   updateSkill: (skillId: string, data: { name?: string; description?: string; status?: string; version?: string }) =>
     request<Skill>(`/admin/skills/${skillId}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteSkill: (skillId: string) => request<void>(`/admin/skills/${skillId}`, { method: 'DELETE' }),
+  // MCP server management
+  listMcpServers: () => request<{ mcpServers: McpServer[] }>('/admin/mcp-servers'),
+  createMcpServer: (data: Record<string, unknown>) =>
+    request<McpServer>('/admin/mcp-servers', { method: 'POST', body: JSON.stringify(data) }),
+  updateMcpServer: (id: string, data: Record<string, unknown>) =>
+    request<McpServer>(`/admin/mcp-servers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteMcpServer: (id: string) => request<void>(`/admin/mcp-servers/${id}`, { method: 'DELETE' }),
 };
+
+// MCP server types (admin-managed)
+export interface McpEnvVar {
+  name: string;
+  description: string;
+  required: boolean;
+  template: string;
+}
+
+export interface McpToolDef {
+  name: string;
+  description: string;
+}
+
+export interface McpServer {
+  mcpServerId: string;
+  name: string;
+  description: string;
+  version: string;
+  type: 'stdio' | 'sse' | 'http';
+  command?: string;
+  args?: string[];
+  npmPackages?: string[];
+  url?: string;
+  headers?: Record<string, string>;
+  envVars?: McpEnvVar[];
+  tools?: McpToolDef[];
+  status: 'active' | 'disabled';
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+}
 
 // Skill types (admin-managed global skills library)
 export interface Skill {
@@ -312,6 +363,18 @@ export interface Skill {
 
 export interface BotSkillEntry extends Skill {
   enabled: boolean;
+}
+
+export interface BotMcpServerEntry {
+  mcpServerId: string;
+  name: string;
+  type: 'stdio' | 'sse' | 'http';
+  description: string;
+  version: string;
+  tools?: McpToolDef[];
+  envVars?: McpEnvVar[];
+  enabled: boolean;
+  source: 'platform' | 'custom';
 }
 
 // File Browser types
