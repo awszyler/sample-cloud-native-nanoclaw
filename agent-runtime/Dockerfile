@@ -101,13 +101,13 @@ RUN mkdir -p /workspace/group /workspace/learnings /workspace/reference /workspa
 }
 SETTINGS
 
-# Pre-bundled skills (local)
-COPY agent-runtime/skills/ /home/node/.claude/skills/
-
-# Community skills from Anthropic
+# Pre-bundled skills — stored in read-only backup, copied to ~/.claude/skills/ at runtime
+COPY agent-runtime/skills/ /app/bundled-skills/
 RUN git clone --depth 1 https://github.com/anthropics/skills.git /tmp/skills \
-    && cp -r /tmp/skills/skills/* /home/node/.claude/skills/ \
+    && cp -r /tmp/skills/skills/* /app/bundled-skills/ \
     && rm -rf /tmp/skills
+# Also populate ~/.claude/skills/ for first invocation
+RUN cp -r /app/bundled-skills /home/node/.claude/skills
 
 # Set ownership to non-root user
 RUN chown -R node:node /workspace /home/node/.claude /home/node
