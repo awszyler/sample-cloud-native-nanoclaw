@@ -234,14 +234,17 @@ async function _handleInvocation(
     learningsPrefix: memoryPaths.learnings,
   };
 
-  // Model/provider change: clean local state and S3 session, sync memory only
+  // Always clean local workspace before sync to prevent cross-tenant file leakage.
+  // In ECS mode, multiple users share the same container — files from a previous
+  // invocation must be removed before downloading the current user's data from S3.
+  await cleanLocalWorkspace();
+
   const forceNewSession = !!payload.forceNewSession;
   if (forceNewSession) {
     logger.info(
       { botId, groupJid, model: payload.model, modelProvider: payload.modelProvider },
       'Model/provider change detected, resetting session',
     );
-    await cleanLocalWorkspace();
     await clearSessionDirectory(s3, SESSION_BUCKET, sessionPath, logger);
     await syncMemoryOnlyFromS3(s3, SESSION_BUCKET, syncPaths, logger);
   } else {
@@ -421,8 +424,7 @@ async function runAgentQuery(params: QueryParams): Promise<InvocationResult> {
 
   // Discover additional directories mounted at /workspace/extra/*
   // (same pattern as NanoClaw for plugin directories)
-  // Always include /home/node so the SDK can edit ~/.claude/CLAUDE.md (native memory)
-  const extraDirs: string[] = ['/home/node'];
+  const extraDirs: string[] = [];
   const extraBase = '/workspace/extra';
   if (fs.existsSync(extraBase)) {
     for (const entry of fs.readdirSync(extraBase)) {
