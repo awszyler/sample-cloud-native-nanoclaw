@@ -1236,7 +1236,7 @@ function BotMcpTab({ bot, botId, loadData }: { bot: Bot; botId: string; loadData
                               type="password"
                               value={secrets[server.mcpServerId]?.[envVar.name] ?? ''}
                               onChange={(e) => setSecretValue(server.mcpServerId, envVar.name, e.target.value)}
-                              placeholder={envVar.description || t('botDetail.mcp.secretPlaceholder')}
+                              placeholder={t('botDetail.mcp.secretPlaceholder')}
                               className="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 focus:outline-none"
                             />
                           </div>

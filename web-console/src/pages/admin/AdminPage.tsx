@@ -705,7 +705,7 @@ function McpServersTab() {
   const [newPackage, setNewPackage] = useState('');
   const [url, setUrl] = useState('');
   const [headers, setHeaders] = useState<Array<{ key: string; value: string }>>([]);
-  const [envVars, setEnvVars] = useState<Array<{ name: string; description: string; required: boolean; template: string }>>([]);
+  const [envVars, setEnvVars] = useState<Array<{ name: string; required: boolean; template: string }>>([]);
   const [tools, setTools] = useState<Array<{ name: string; description: string }>>([]);
 
   function loadServers() {
@@ -942,10 +942,7 @@ function McpServersTab() {
                   <input type="text" value={ev.name} placeholder={t('admin.mcpServers.envVarName')}
                     onChange={(e) => { const v = [...envVars]; v[i] = { ...v[i], name: e.target.value }; setEnvVars(v); }}
                     className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 focus:outline-none" />
-                  <input type="text" value={ev.description} placeholder={t('admin.mcpServers.envVarDesc')}
-                    onChange={(e) => { const v = [...envVars]; v[i] = { ...v[i], description: e.target.value }; setEnvVars(v); }}
-                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 focus:outline-none" />
-                  <input type="text" value={ev.template} placeholder={t('admin.mcpServers.envVarTemplate')}
+                  <input type="text" value={ev.template} placeholder={t('admin.mcpServers.envVarValue')}
                     onChange={(e) => { const v = [...envVars]; v[i] = { ...v[i], template: e.target.value }; setEnvVars(v); }}
                     className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 focus:outline-none" />
                   <label className="inline-flex items-center gap-1 text-sm text-slate-600 whitespace-nowrap pt-2">
@@ -958,7 +955,7 @@ function McpServersTab() {
                     className="text-slate-400 hover:text-slate-600 pt-2"><X size={18} /></button>
                 </div>
               ))}
-              <button onClick={() => setEnvVars([...envVars, { name: '', description: '', required: false, template: '' }])}
+              <button onClick={() => setEnvVars([...envVars, { name: '', required: false, template: '' }])}
                 className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
                 {t('admin.mcpServers.addEnvVar')}
               </button>
