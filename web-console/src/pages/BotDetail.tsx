@@ -971,7 +971,7 @@ function BotMcpTab({ bot, botId, loadData }: { bot: Bot; botId: string; loadData
   const [customNewPackage, setCustomNewPackage] = useState('');
   const [customUrl, setCustomUrl] = useState('');
   const [customHeaders, setCustomHeaders] = useState<Array<{ key: string; value: string }>>([]);
-  const [customEnvVars, setCustomEnvVars] = useState<Array<{ name: string; description: string; required: boolean; template: string }>>([]);
+  const [customEnvVars, setCustomEnvVars] = useState<Array<{ name: string; template: string }>>([]);
 
   // MCP tool whitelist (moved from ToolsTab)
   const [mcpToolsEnabled, setMcpToolsEnabled] = useState(bot.toolWhitelist?.mcpToolsEnabled ?? false);
@@ -1447,27 +1447,18 @@ function BotMcpTab({ bot, botId, loadData }: { bot: Bot; botId: string; loadData
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t('admin.mcpServers.envVars')}</label>
               {customEnvVars.map((ev, i) => (
-                <div key={i} className="flex gap-2 mb-2 items-start">
+                <div key={i} className="flex gap-2 mb-2 items-center">
                   <input type="text" value={ev.name} placeholder={t('admin.mcpServers.envVarName')}
                     onChange={(e) => { const v = [...customEnvVars]; v[i] = { ...v[i], name: e.target.value }; setCustomEnvVars(v); }}
                     className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 focus:outline-none" />
-                  <input type="text" value={ev.description} placeholder={t('admin.mcpServers.envVarDesc')}
-                    onChange={(e) => { const v = [...customEnvVars]; v[i] = { ...v[i], description: e.target.value }; setCustomEnvVars(v); }}
-                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 focus:outline-none" />
-                  <input type="text" value={ev.template} placeholder={t('admin.mcpServers.envVarTemplate')}
+                  <input type="text" value={ev.template} placeholder={t('admin.mcpServers.envVarValue')}
                     onChange={(e) => { const v = [...customEnvVars]; v[i] = { ...v[i], template: e.target.value }; setCustomEnvVars(v); }}
                     className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 focus:outline-none" />
-                  <label className="inline-flex items-center gap-1 text-sm text-slate-600 whitespace-nowrap pt-2">
-                    <input type="checkbox" checked={ev.required}
-                      onChange={(e) => { const v = [...customEnvVars]; v[i] = { ...v[i], required: e.target.checked }; setCustomEnvVars(v); }}
-                      className="rounded border-slate-300 text-accent-500 focus:ring-accent-500/20" />
-                    {t('admin.mcpServers.envVarRequired')}
-                  </label>
                   <button onClick={() => setCustomEnvVars(customEnvVars.filter((_, idx) => idx !== i))}
-                    className="text-slate-400 hover:text-slate-600 pt-2"><X size={18} /></button>
+                    className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
                 </div>
               ))}
-              <button onClick={() => setCustomEnvVars([...customEnvVars, { name: '', description: '', required: false, template: '' }])}
+              <button onClick={() => setCustomEnvVars([...customEnvVars, { name: '', template: '' }])}
                 className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
                 {t('admin.mcpServers.addEnvVar')}
               </button>
