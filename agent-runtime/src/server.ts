@@ -36,8 +36,14 @@ app.get('/ping', async () => {
 // Agent execution endpoint — async fire-and-forget
 app.post<{ Body: InvocationPayload }>('/invocations', async (request, reply) => {
   const payload = request.body;
-  logger.info({ botId: payload.botId, groupJid: payload.groupJid }, 'Invocation received');
 
+  // Reject concurrent requests — single-concurrency per task
+  if (busy) {
+    logger.info({ botId: payload.botId, groupJid: payload.groupJid }, 'Agent busy, rejecting request');
+    return reply.status(503).send({ error: 'Agent is busy' });
+  }
+
+  logger.info({ botId: payload.botId, groupJid: payload.groupJid }, 'Invocation received');
   setBusy();
 
   // Fire-and-forget: run in background, respond immediately

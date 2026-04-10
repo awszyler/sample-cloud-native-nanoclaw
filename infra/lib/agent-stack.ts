@@ -340,13 +340,11 @@ export class AgentStack extends cdk.Stack {
         securityGroups: [agentSg],
       });
 
-      // Auto-scaling
+      // Auto-scaling — scale on concurrent requests, not CPU
+      // Each agent task handles 1 request at a time (returns 503 when busy)
       const scaling = service.autoScaleTaskCount({
         minCapacity: 2,
         maxCapacity: 100,
-      });
-      scaling.scaleOnCpuUtilization('CpuScaling', {
-        targetUtilizationPercent: 70,
       });
 
       // Internal ALB
@@ -374,6 +372,9 @@ export class AgentStack extends cdk.Stack {
         port: 8080,
         protocol: elbv2.ApplicationProtocol.HTTP,
         targets: [service],
+        // Prefer idle tasks — reduces 503s in single-concurrency model
+        loadBalancingAlgorithmType: elbv2.TargetGroupLoadBalancingAlgorithmType.LEAST_OUTSTANDING_REQUESTS,
+        deregistrationDelay: cdk.Duration.seconds(30),
         healthCheck: {
           path: '/ping',
           interval: cdk.Duration.seconds(30),
@@ -386,6 +387,14 @@ export class AgentStack extends cdk.Stack {
       alb.addListener('AgentHttpListener', {
         port: 80,
         defaultTargetGroups: [targetGroup],
+      });
+
+      // Scale on request count — 1 request per target (single-concurrency model)
+      scaling.scaleOnRequestCount('RequestCountScaling', {
+        requestsPerTarget: 1,
+        targetGroup,
+        scaleInCooldown: cdk.Duration.minutes(30),  // slow scale-in (agent invocations are long)
+        scaleOutCooldown: cdk.Duration.seconds(30),  // fast scale-out on demand
       });
 
       this.agentEndpoint = `http://${alb.loadBalancerDnsName}`;

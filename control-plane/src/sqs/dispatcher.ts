@@ -623,6 +623,9 @@ class AgentCoreInvoker implements AgentInvoker {
 }
 
 class EcsHttpInvoker implements AgentInvoker {
+  private static readonly MAX_RETRIES = 5;
+  private static readonly RETRY_DELAY_MS = 5_000;
+
   async invoke(payload: InvocationPayload, logger: Logger): Promise<InvocationResult> {
     const endpoint = config.agentEndpoint;
     if (!endpoint) {
@@ -635,27 +638,48 @@ class EcsHttpInvoker implements AgentInvoker {
       'Invoking ECS agent runtime',
     );
 
-    try {
-      const url = `${endpoint}/invocations`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(30_000),
-      });
+    const url = `${endpoint}/invocations`;
 
-      if (!res.ok) {
-        const text = await res.text();
-        logger.error({ status: res.status, body: text }, 'ECS agent invocation returned error');
-        return { status: 'error', result: null, error: `ECS agent returned ${res.status}: ${text}` };
+    for (let attempt = 0; attempt < EcsHttpInvoker.MAX_RETRIES; attempt++) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(30_000),
+        });
+
+        // 503 = agent busy — retry after delay (wait for current invocation to finish)
+        if (res.status === 503 && attempt < EcsHttpInvoker.MAX_RETRIES - 1) {
+          logger.info(
+            { attempt: attempt + 1, maxRetries: EcsHttpInvoker.MAX_RETRIES, botId: payload.botId },
+            'Agent busy (503), retrying after delay',
+          );
+          await new Promise((r) => setTimeout(r, EcsHttpInvoker.RETRY_DELAY_MS * (attempt + 1)));
+          continue;
+        }
+
+        if (!res.ok) {
+          const text = await res.text();
+          logger.error({ status: res.status, body: text }, 'ECS agent invocation returned error');
+          return { status: 'error', result: null, error: `ECS agent returned ${res.status}: ${text}` };
+        }
+
+        return { status: 'accepted', result: null };
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        // Network error — retry if attempts remain
+        if (attempt < EcsHttpInvoker.MAX_RETRIES - 1) {
+          logger.warn({ err, attempt: attempt + 1 }, 'ECS agent invocation failed, retrying');
+          await new Promise((r) => setTimeout(r, EcsHttpInvoker.RETRY_DELAY_MS * (attempt + 1)));
+          continue;
+        }
+        logger.error({ err }, 'ECS agent runtime invocation failed after all retries');
+        return { status: 'error', result: null, error: `ECS agent invocation failed: ${message}` };
       }
-
-      return { status: 'accepted', result: null };
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      logger.error({ err }, 'ECS agent runtime invocation failed');
-      return { status: 'error', result: null, error: `ECS agent invocation failed: ${message}` };
     }
+
+    return { status: 'error', result: null, error: 'ECS agent invocation failed: max retries exceeded' };
   }
 }
 
