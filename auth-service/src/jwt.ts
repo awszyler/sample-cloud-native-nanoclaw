@@ -85,7 +85,7 @@ export async function signAccessToken(claims: TokenClaims): Promise<string> {
     .setSubject(claims.sub)
     .setIssuer('clawbot-auth')
     .setIssuedAt()
-    .setExpirationTime('1h')
+    .setExpirationTime('7d')
     .sign(privateKey);
 }
 
