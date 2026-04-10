@@ -278,6 +278,20 @@ async function _handleInvocation(
   // Ensure reference files available
   copyIfMissing(TEMPLATES, 'CODING_REFERENCE.md', '/workspace/reference');
 
+  // 3b. Ensure settings.json exists (may be lost after session sync/reset)
+  const SETTINGS_PATH = '/home/node/.claude/settings.json';
+  if (!fs.existsSync(SETTINGS_PATH)) {
+    fs.writeFileSync(SETTINGS_PATH, JSON.stringify({
+      permissions: {
+        allow: [
+          'Edit(/home/node/.claude/*)',
+          'Write(/home/node/.claude/*)',
+        ],
+      },
+    }, null, 2));
+    logger.info('Wrote settings.json with pre-authorized permissions');
+  }
+
   // 4. Build append content (managed policy + identity + channel + runtime)
   const appendContent = buildAppendContent({
     botId,
@@ -400,13 +414,15 @@ async function runAgentQuery(params: QueryParams): Promise<InvocationResult> {
 
   let newSessionId: string | undefined;
   let lastResult: string | null = null;
+  let lastAssistantText: string | null = null; // Track last non-empty text from assistant
   let messageCount = 0;
   let resultCount = 0;
   let tokensUsed = 0;
 
   // Discover additional directories mounted at /workspace/extra/*
   // (same pattern as NanoClaw for plugin directories)
-  const extraDirs: string[] = [];
+  // Always include /home/node so the SDK can edit ~/.claude/CLAUDE.md (native memory)
+  const extraDirs: string[] = ['/home/node'];
   const extraBase = '/workspace/extra';
   if (fs.existsSync(extraBase)) {
     for (const entry of fs.readdirSync(extraBase)) {
@@ -440,7 +456,7 @@ async function runAgentQuery(params: QueryParams): Promise<InvocationResult> {
       options: {
         model: payload.model || DEFAULT_MODEL,
         cwd: '/workspace/group',
-        additionalDirectories: extraDirs.length > 0 ? extraDirs : undefined,
+        additionalDirectories: extraDirs,
         continue: !params.forceNewSession,
         systemPrompt: {
           type: 'preset' as const,
@@ -540,6 +556,11 @@ async function runAgentQuery(params: QueryParams): Promise<InvocationResult> {
           const content = msg?.content as Array<{ type: string; name?: string; id?: string; text?: string }> | undefined;
           const toolUses = content?.filter((b) => b.type === 'tool_use').map((b) => b.name) || [];
           const textBlocks = content?.filter((b) => b.type === 'text').map((b) => (b.text || '').slice(0, 200)) || [];
+          // Track last non-empty assistant text for fallback when SDK result is empty
+          const fullText = content?.filter((b) => b.type === 'text').map((b) => b.text || '').join('\n').trim();
+          if (fullText) {
+            lastAssistantText = fullText;
+          }
           logger.info(
             {
               model: msg?.model,
@@ -613,9 +634,13 @@ async function runAgentQuery(params: QueryParams): Promise<InvocationResult> {
     'Agent query completed',
   );
 
+  // Use lastAssistantText as fallback when SDK result is empty
+  // (happens when the final turn is a tool call, not text)
+  const finalResult = lastResult || lastAssistantText;
+
   return {
     status: 'success',
-    result: lastResult,
+    result: finalResult,
     newSessionId,
     tokensUsed: tokensUsed || undefined,
   };

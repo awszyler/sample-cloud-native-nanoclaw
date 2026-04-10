@@ -21,7 +21,10 @@ import { TelegramAdapter } from './adapters/telegram/index.js';
 import { FeishuAdapter } from './adapters/feishu/index.js';
 import { DingTalkAdapter } from './adapters/dingtalk/index.js';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = pino({
+  level: process.env.LOG_LEVEL || 'info',
+  timestamp: pino.stdTimeFunctions.isoTime,
+});
 
 async function main() {
   await resolveConfig();
@@ -49,6 +52,41 @@ async function main() {
   await app.register(healthRoutes);
   await app.register(webhookRoutes, { prefix: '/webhook' });
   await app.register(apiRoutes, { prefix: '/api' });
+
+  // ECS mode: proxy /auth/* requests to internal auth-service ALB
+  if (config.agentMode === 'ecs' && config.auth.endpoint) {
+    app.register(async (authProxy) => {
+      // Proxy all /auth/* requests to internal auth-service
+      authProxy.all('/*', async (request, reply) => {
+        // request.url is the full original URL (e.g. /auth/login), forward as-is
+        const targetUrl = `${config.auth.endpoint}${request.url}`;
+        const headers: Record<string, string> = {};
+        if (request.headers['content-type']) {
+          headers['content-type'] = request.headers['content-type'] as string;
+        }
+        if (request.headers.authorization) {
+          headers.authorization = request.headers.authorization;
+        }
+        if (request.headers['x-bootstrap-secret']) {
+          headers['x-bootstrap-secret'] = request.headers['x-bootstrap-secret'] as string;
+        }
+        try {
+          const res = await fetch(targetUrl, {
+            method: request.method,
+            headers,
+            body: request.method !== 'GET' && request.method !== 'HEAD' ? JSON.stringify(request.body) : undefined,
+            signal: AbortSignal.timeout(10_000),
+          });
+          const body = await res.text();
+          return reply.status(res.status).header('content-type', res.headers.get('content-type') || 'application/json').send(body);
+        } catch (err) {
+          logger.error({ err, targetUrl }, 'Auth proxy failed');
+          return reply.status(502).send({ error: 'Auth service unavailable' });
+        }
+      });
+    }, { prefix: '/auth' });
+    logger.info({ authEndpoint: config.auth.endpoint }, 'Auth proxy enabled for /auth/*');
+  }
 
   // Start background SQS consumers
   startSqsConsumer(logger);

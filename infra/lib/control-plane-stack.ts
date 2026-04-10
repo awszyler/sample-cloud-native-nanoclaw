@@ -16,6 +16,7 @@ import type { Construct } from 'constructs';
 
 export interface ControlPlaneStackProps extends cdk.StackProps {
   stage: string;
+  mode: 'agentcore' | 'ecs';
   vpc: ec2.IVpc;
   dataBucket: s3.IBucket;
   ecrRepo: ecr.IRepository;
@@ -40,6 +41,9 @@ export interface ControlPlaneStackProps extends cdk.StackProps {
   agentBaseRole: iam.IRole;
   schedulerRoleArn: string;
   messageQueueArn: string;
+  authEndpoint: string;
+  authJwksUrl: string;
+  agentEndpoint: string;
 }
 
 export class ControlPlaneStack extends cdk.Stack {
@@ -139,6 +143,7 @@ export class ControlPlaneStack extends cdk.Stack {
       environment: {
         STAGE: stage,
         AWS_REGION: this.region,
+        AGENT_MODE: props.mode,
         USERS_TABLE: tables.users.tableName,
         BOTS_TABLE: tables.bots.tableName,
         CHANNELS_TABLE: tables.channels.tableName,
@@ -153,13 +158,20 @@ export class ControlPlaneStack extends cdk.Stack {
         MESSAGE_QUEUE_URL: messageQueue.queueUrl,
         REPLY_QUEUE_URL: replyQueue.queueUrl,
         DATA_BUCKET: dataBucket.bucketName,
-        COGNITO_USER_POOL_ID: userPool.userPoolId,
-        COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
         SCHEDULER_ROLE_ARN: props.schedulerRoleArn,
         MESSAGE_QUEUE_ARN: props.messageQueueArn,
         WEBHOOK_BASE_URL_SSM: `/nanoclawbot/${stage}/webhook-base-url`,
-        AGENTCORE_RUNTIME_ARN_SSM: `/nanoclawbot/${stage}/agentcore-runtime-arn`,
         ORIGIN_VERIFY_SECRET: this.originVerifySecret,
+        ...(props.mode === 'agentcore' ? {
+          COGNITO_USER_POOL_ID: userPool.userPoolId,
+          COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
+          AGENTCORE_RUNTIME_ARN_SSM: `/nanoclawbot/${stage}/agentcore-runtime-arn`,
+        } : {}),
+        ...(props.mode === 'ecs' ? {
+          AUTH_JWKS_URL: props.authJwksUrl,
+          AUTH_ENDPOINT: props.authEndpoint,
+          AGENT_ENDPOINT: props.agentEndpoint,
+        } : {}),
       },
       logging: ecs.LogDrivers.awsLogs({
         logGroup,
@@ -191,7 +203,7 @@ export class ControlPlaneStack extends cdk.Stack {
         sid: 'SsmReadConfig',
         effect: iam.Effect.ALLOW,
         actions: ['ssm:GetParameter'],
-        resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter/nanoclawbot/${stage}/*`],
+        resources: [`arn:${this.partition}:ssm:${this.region}:${this.account}:parameter/nanoclawbot/${stage}/*`],
       }),
     );
 
@@ -207,19 +219,21 @@ export class ControlPlaneStack extends cdk.Stack {
           'secretsmanager:DeleteSecret',
           'secretsmanager:UpdateSecret',
         ],
-        resources: [`arn:aws:secretsmanager:${this.region}:${this.account}:secret:nanoclawbot/${stage}/*`],
+        resources: [`arn:${this.partition}:secretsmanager:${this.region}:${this.account}:secret:nanoclawbot/${stage}/*`],
       }),
     );
 
-    // AgentCore — invoke agent runtime
-    taskRole.addToPrincipalPolicy(
-      new iam.PolicyStatement({
-        sid: 'AgentCoreInvoke',
-        effect: iam.Effect.ALLOW,
-        actions: ['bedrock-agentcore:InvokeAgentRuntime'],
-        resources: [`arn:aws:bedrock-agentcore:${this.region}:${this.account}:runtime/nanoclawbot_${stage}-*`],
-      }),
-    );
+    // AgentCore — invoke agent runtime (agentcore mode only)
+    if (props.mode === 'agentcore') {
+      taskRole.addToPrincipalPolicy(
+        new iam.PolicyStatement({
+          sid: 'AgentCoreInvoke',
+          effect: iam.Effect.ALLOW,
+          actions: ['bedrock-agentcore:InvokeAgentRuntime'],
+          resources: [`arn:${this.partition}:bedrock-agentcore:${this.region}:${this.account}:runtime/nanoclawbot_${stage}-*`],
+        }),
+      );
+    }
 
     // EventBridge Scheduler — manage schedules for scheduled tasks API
     taskRole.addToPrincipalPolicy(
@@ -232,7 +246,7 @@ export class ControlPlaneStack extends cdk.Stack {
           'scheduler:UpdateSchedule',
           'scheduler:DeleteSchedule',
         ],
-        resources: [`arn:aws:scheduler:${this.region}:${this.account}:schedule/default/nanoclawbot-*`],
+        resources: [`arn:${this.partition}:scheduler:${this.region}:${this.account}:schedule/default/nanoclawbot-*`],
       }),
     );
     taskRole.addToPrincipalPolicy(
@@ -251,8 +265,8 @@ export class ControlPlaneStack extends cdk.Stack {
         effect: iam.Effect.ALLOW,
         actions: ['ecs:RunTask', 'ecs:DescribeTasks', 'ecs:StopTask'],
         resources: [
-          `arn:aws:ecs:${this.region}:${this.account}:task/${this.cluster.clusterName}/*`,
-          `arn:aws:ecs:${this.region}:${this.account}:task-definition/nanoclawbot-${stage}-*`,
+          `arn:${this.partition}:ecs:${this.region}:${this.account}:task/${this.cluster.clusterName}/*`,
+          `arn:${this.partition}:ecs:${this.region}:${this.account}:task-definition/nanoclawbot-${stage}-*`,
         ],
       }),
     );
@@ -267,19 +281,21 @@ export class ControlPlaneStack extends cdk.Stack {
       }),
     );
 
-    // Cognito — admin user management (create, enable, disable)
-    taskRole.addToPrincipalPolicy(
-      new iam.PolicyStatement({
-        sid: 'CognitoAdminUser',
-        effect: iam.Effect.ALLOW,
-        actions: [
-          'cognito-idp:AdminCreateUser',
-          'cognito-idp:AdminDisableUser',
-          'cognito-idp:AdminEnableUser',
-        ],
-        resources: [props.userPool.userPoolArn],
-      }),
-    );
+    // Cognito — admin user management (agentcore mode only)
+    if (props.mode === 'agentcore') {
+      taskRole.addToPrincipalPolicy(
+        new iam.PolicyStatement({
+          sid: 'CognitoAdminUser',
+          effect: iam.Effect.ALLOW,
+          actions: [
+            'cognito-idp:AdminCreateUser',
+            'cognito-idp:AdminDisableUser',
+            'cognito-idp:AdminEnableUser',
+          ],
+          resources: [props.userPool.userPoolArn],
+        }),
+      );
+    }
 
     // ── Fargate Service ─────────────────────────────────────────────────
     this.service = new ecs.FargateService(this, 'Service', {
