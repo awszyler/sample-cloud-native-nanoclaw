@@ -371,6 +371,11 @@ export interface BotMcpServerEntry {
   type: 'stdio' | 'sse' | 'http';
   description: string;
   version: string;
+  command?: string;
+  args?: string[];
+  npmPackages?: string[];
+  url?: string;
+  headers?: Record<string, string>;
   tools?: McpToolDef[];
   envVars?: McpEnvVar[];
   enabled: boolean;

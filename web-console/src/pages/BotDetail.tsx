@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Radio, MessageSquare, Clock, Brain,
   FolderOpen, Settings as SettingsIcon, Plus, Trash2, ExternalLink,
-  Play, Pause, Save, AlertTriangle, Zap, Server, ChevronDown, ChevronRight, X,
+  Play, Pause, Save, AlertTriangle, Zap, Server, ChevronDown, ChevronRight, X, Pencil,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import TabNav from '../components/TabNav';
@@ -958,6 +958,7 @@ function BotMcpTab({ bot, botId, loadData }: { bot: Bot; botId: string; loadData
   // Custom servers
   const [customServers, setCustomServers] = useState<BotMcpServerEntry[]>([]);
   const [showAddCustom, setShowAddCustom] = useState(false);
+  const [editingCustomId, setEditingCustomId] = useState<string | null>(null);
 
   // Custom server form state (mirrors admin McpServersTab form)
   const [customType, setCustomType] = useState<'stdio' | 'sse' | 'http'>('stdio');
@@ -1046,6 +1047,7 @@ function BotMcpTab({ bot, botId, loadData }: { bot: Bot; botId: string; loadData
   }
 
   function resetCustomForm() {
+    setEditingCustomId(null);
     setCustomType('stdio');
     setCustomName('');
     setCustomDesc('');
@@ -1056,6 +1058,21 @@ function BotMcpTab({ bot, botId, loadData }: { bot: Bot; botId: string; loadData
     setCustomUrl(''); setCustomHeaders([]);
     setCustomEnvVars([]);
     setShowAddCustom(false);
+  }
+
+  function startEditCustom(server: BotMcpServerEntry) {
+    setEditingCustomId(server.mcpServerId);
+    setShowAddCustom(true);
+    setCustomType((server.type || 'stdio') as 'stdio' | 'sse' | 'http');
+    setCustomName(server.name || '');
+    setCustomDesc(server.description || '');
+    setCustomVersion(server.version || '1.0.0');
+    setCustomCommand(server.command || '');
+    setCustomArgs(server.args || []); setCustomNewArg('');
+    setCustomNpmPackages(server.npmPackages || []); setCustomNewPackage('');
+    setCustomUrl(server.url || '');
+    setCustomHeaders(server.headers ? Object.entries(server.headers).map(([key, value]) => ({ key, value })) : []);
+    setCustomEnvVars((server.envVars || []).map((ev) => ({ name: ev.name, template: ev.template || '' })));
   }
 
   function addCustomArg() {
@@ -1070,7 +1087,7 @@ function BotMcpTab({ bot, botId, loadData }: { bot: Bot; botId: string; loadData
     setCustomNewPackage('');
   }
 
-  async function handleAddCustom() {
+  async function handleSubmitCustom() {
     if (!customName.trim()) return;
     setSaving(true);
     try {
@@ -1093,8 +1110,14 @@ function BotMcpTab({ bot, botId, loadData }: { bot: Bot; botId: string; loadData
         }
       }
       if (customEnvVars.length) data.envVars = customEnvVars.filter((ev) => ev.name.trim());
-      const newServer = await botsApi.addCustomMcpServer(botId, data);
-      setCustomServers(prev => [...prev, newServer]);
+
+      if (editingCustomId) {
+        const updated = await botsApi.updateCustomMcpServer(botId, editingCustomId, data);
+        setCustomServers(prev => prev.map(s => s.mcpServerId === editingCustomId ? updated : s));
+      } else {
+        const newServer = await botsApi.addCustomMcpServer(botId, data);
+        setCustomServers(prev => [...prev, newServer]);
+      }
       resetCustomForm();
     } catch {
       setStatus('error');
@@ -1465,9 +1488,9 @@ function BotMcpTab({ bot, botId, loadData }: { bot: Bot; botId: string; loadData
             </div>
 
             {/* Create button */}
-            <button onClick={handleAddCustom} disabled={saving || !customName.trim()}
+            <button onClick={handleSubmitCustom} disabled={saving || !customName.trim()}
               className="rounded-lg bg-accent-500 text-white px-4 py-2 text-sm font-medium hover:bg-accent-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-              {saving ? t('common.creating') : t('common.create')}
+              {saving ? t('common.saving') : editingCustomId ? t('common.save') : t('common.create')}
             </button>
           </div>
         )}
@@ -1492,8 +1515,16 @@ function BotMcpTab({ bot, botId, loadData }: { bot: Bot; botId: string; loadData
                   )}
                 </div>
                 <button
+                  onClick={() => startEditCustom(server)}
+                  className="text-slate-400 hover:text-accent-500 transition-colors"
+                  title={t('common.edit')}
+                >
+                  <Pencil size={16} />
+                </button>
+                <button
                   onClick={() => handleDeleteCustom(server)}
                   className="text-slate-400 hover:text-red-500 transition-colors"
+                  title={t('common.delete')}
                 >
                   <Trash2 size={16} />
                 </button>
