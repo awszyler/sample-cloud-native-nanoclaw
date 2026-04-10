@@ -133,7 +133,11 @@ async function cleanLocalWorkspace(): Promise<void> {
   try { rmSync(claudeDir, { recursive: true, force: true }); } catch { /* ignore */ }
   try { mkdirSync(claudeDir, { recursive: true }); } catch { /* ignore */ }
   // Restore bundled skills from read-only backup
-  try { cpSync(BUNDLED_SKILLS_DIR, path.join(claudeDir, 'skills'), { recursive: true }); } catch { /* ignore */ }
+  if (fs.existsSync(BUNDLED_SKILLS_DIR)) {
+    cpSync(BUNDLED_SKILLS_DIR, path.join(claudeDir, 'skills'), { recursive: true });
+  } else {
+    console.warn('Bundled skills directory not found at', BUNDLED_SKILLS_DIR);
+  }
 }
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -209,9 +213,8 @@ async function _handleInvocation(
   if (currentSessionKey && currentSessionKey !== sessionKey) {
     logger.info(
       { previousSession: currentSessionKey, newSession: sessionKey },
-      'Session switch detected, cleaning local workspace',
+      'Session switch detected',
     );
-    await cleanLocalWorkspace();
   }
   currentSessionKey = sessionKey;
 
