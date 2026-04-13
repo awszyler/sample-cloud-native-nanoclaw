@@ -131,6 +131,13 @@ async function consumeLoop(logger: Logger): Promise<void> {
         continue;
       }
 
+      // Track groups dispatched in this batch to prevent same-group concurrent
+      // dispatch. SQS FIFO can return multiple same-group messages in one batch
+      // when they all become visible simultaneously (e.g. after visibility timeout
+      // expiry or deferred delete). Only the first is dispatched; the rest are
+      // released back to the queue and will be consumed after the first completes.
+      const batchGroups = new Set<string>();
+
       for (let i = 0; i < result.Messages.length; i++) {
         const msg = result.Messages[i];
 
@@ -149,16 +156,31 @@ async function consumeLoop(logger: Logger): Promise<void> {
           break;
         }
 
-        await semaphore.acquire();
-
-        const handle = msg.ReceiptHandle!;
-        inFlightHandles.add(handle);
-
+        // Parse group key early — needed for batch dedup before acquiring semaphore
         let groupKey: string | null = null;
         try {
           const body = JSON.parse(msg.Body!) as SqsPayload;
           groupKey = `${body.botId}#${body.groupJid}`;
-        } catch { /* parse error handled in .then */ }
+        } catch { /* parse error handled in dispatch .then */ }
+
+        // Same group already dispatching in this batch — release back to queue.
+        // SQS FIFO will block re-delivery until the in-flight message is deleted.
+        if (groupKey && batchGroups.has(groupKey)) {
+          logger.debug({ key: groupKey, messageId: msg.MessageId }, 'Same-group message in batch, releasing back to queue');
+          sqs.send(new ChangeMessageVisibilityCommand({
+            QueueUrl: config.queues.messages,
+            ReceiptHandle: msg.ReceiptHandle!,
+            VisibilityTimeout: 0,
+          })).catch(() => {});
+          continue;
+        }
+
+        if (groupKey) batchGroups.add(groupKey);
+
+        await semaphore.acquire();
+
+        const handle = msg.ReceiptHandle!;
+        inFlightHandles.add(handle);
 
         // Fire-and-forget dispatch — defer SQS delete until agent's final reply.
         // FIFO ordering ensures same-group messages are processed sequentially.
