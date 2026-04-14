@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # ClawBot Cloud — Agent Runtime
 # Multi-stage build targeting AgentCore (ARM64)
 # Build from repo root: docker build -f agent-runtime/Dockerfile .

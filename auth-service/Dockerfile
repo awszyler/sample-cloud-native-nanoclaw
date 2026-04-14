@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # ClawBot Cloud — Auth Service (ECS mode only)
 # Multi-stage build targeting Fargate Graviton (ARM64)
 

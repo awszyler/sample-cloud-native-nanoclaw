@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # ClawBot Cloud — Control Plane
 # Multi-stage build targeting Fargate Graviton (ARM64)
 
